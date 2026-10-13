@@ -1,4 +1,4 @@
-# 实验 1 记录：第 <组号> 组
+# 实验 1 记录：第 8 组
 
 现场检查时将打开本文件，按其中的链接核对。证据一律以链接或文本形式给出，不要只贴截图。将 `<填写>` 替换为本组的内容。main 受保护之后，修改本文件也须通过 PR。
 
@@ -6,27 +6,27 @@
 
 | 项 | 内容 |
 |---|---|
-| 小组 | 第 <组号> 组 |
-| 仓库地址 | <https://github.com/…> |
-| 代码载体 | 统一示例 / 自己的项目（<项目名与语言>） |
-| runner 与语言版本 | `ubuntu-24.04`，<Go 或其他语言的版本> |
-| 合并方式 | <squash / merge commit / rebase> |
+| 小组 | 第 8 组 |
+| 仓库地址 | <https://github.com/aCannedFish/ops-lab1-8> |
+| 代码载体 | 统一示例 `enroll-conflict`（Go） |
+| runner 与语言版本 | `ubuntu-24.04`，Go `1.26.9`；[ci 第 3 次运行](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38353330057)成功，已产出 artifact `enroll-conflict-d24ae3fadbb46bceed0a8d8556e2f8a598109187-3` |
+| 合并方式 | squash（仓库仅允许此方式；[PR #1](https://github.com/aCannedFish/ops-lab1-8/pull/1)合并后对应提交 `d24ae3fadbb46bceed0a8d8556e2f8a598109187`） |
 
 ## 2. 任务 0：本地基线
 
 | 问题 | 观察结果 |
 |---|---|
-| 第一次 `make package` 得到的 BUILD_INFO（粘贴） | <填写> |
-| 修改一行、不提交，再次打包：BUILD_INFO 是否变化？二进制文件的 sha256 是否变化？（贴出两次的 sha256） | <填写> |
-| 两次 `go version -m` 输出中的 vcs 行有何不同？ | <填写> |
-| 仅凭 BUILD_INFO，能否回答该包是什么、在哪台机器上、何时、用哪份代码构建？哪一项信息会出错？ | <填写> |
+| 第一次 `make package` 得到的 BUILD_INFO（粘贴） | 在 Linux 主机 `ecs-249f` 的 `/home/ubuntu/lab1-local` 中克隆[课程模板仓库](https://github.com/zilinglius/operations-2026-lab1-sample)，执行 `make package VERSION=1.0.0 BUILD_NO=1`。两次构建均设置 `GOMAXPROCS=1`、`GOFLAGS=-p=1`、`GOMEMLIMIT=256MiB`。实际输出：<br>`name=enroll-conflict`<br>`version=1.0.0`<br>`build_no=1`<br>`run_id=local`<br>`commit=7b63b41c13f061439997b0e6e4eaa2af922a7aa1`<br>`go=go1.26.9` |
+| 修改一行、不提交，再次打包：BUILD_INFO 是否变化？二进制文件的 sha256 是否变化？（贴出两次的 sha256） | 将 `conflict.go` 第 1 行改为 `package main // task0 baseline observation`，不提交，以相同参数再次打包。`BUILD_INFO` 没有变化，二进制 sha256 发生变化。两次 `sha256sum` 的实际输出：<br>第一次：`f23447d406c42af7dd35e23c2d1b2f15484cfb709cc9b4bb1262643694b8528e  dist/enroll-conflict_1.0.0_linux_amd64/enroll-conflict`<br>第二次：`fd9e4cdfb5dba94309d1eb422110fa4e4217bce6cd13a5c8e22048f5ca1fa098  dist/enroll-conflict_1.0.0_linux_amd64/enroll-conflict` |
+| 两次 `go version -m` 输出中的 vcs 行有何不同？ | 第一次：<br>`build vcs=git`<br>`build vcs.revision=7b63b41c13f061439997b0e6e4eaa2af922a7aa1`<br>`build vcs.time=2026-10-12T16:26:07Z`<br>`build vcs.modified=false`<br>第二次：<br>`build vcs=git`<br>`build vcs.revision=7b63b41c13f061439997b0e6e4eaa2af922a7aa1`<br>`build vcs.time=2026-10-12T16:26:07Z`<br>`build vcs.modified=true`<br>仅 `vcs.modified` 从 `false` 变为 `true`，表示第二次构建包含未提交的工作区改动。虽然只修改了注释，这项内嵌构建信息仍使二进制内容及哈希发生变化。 |
+| 仅凭 BUILD_INFO，能否回答该包是什么、在哪台机器上、何时、用哪份代码构建？哪一项信息会出错？ | 不能完整回答。`name`、`version` 能标识包及版本，`go` 记录工具链版本；构建主机和构建时间没有记录，`go version -m` 中的 `vcs.time` 也是提交时间。`commit` 取本地 HEAD，第二次构建时仍为 `7b63b41c13f061439997b0e6e4eaa2af922a7aa1`，没有反映未提交的注释改动。因此，若仅凭该字段认定制品完全来自此提交，会把实际构建源码认错；`BUILD_INFO` 本身没有标记工作区是否干净。 |
 
 ## 3. 证据
 
 | 项 | 链接或文本 |
 |---|---|
-| 规则集里启用的规则 | <列出规则名、审批人数和必需检查的名称> |
-| 组长直接 `git push origin main` 被拒的终端输出 | <粘贴文本> |
+| 规则集里启用的规则 | [main-merge-gate](https://github.com/aCannedFish/ops-lab1-8/rules/24975603)：状态为 Active，作用于默认分支 `main`，Bypass list 为空，管理员也不能绕过。启用 Restrict deletions、Block force pushes、Require a pull request before merging（Required approvals：1）、Require status checks to pass（必需检查：`ci`，来源为 GitHub Actions；未要求分支在合并前更新到最新主干）。 |
+| 组长直接 `git push origin main` 被拒的终端输出 | 使用组长 `aCannedFish` 账号（仓库管理员），创建一个空提交后执行 `git push origin main`，退出码为 1。实际输出：<br>`remote: error: GH013: Repository rule violations found for refs/heads/main.`<br>`remote: Review all repository rules at https://github.com/aCannedFish/ops-lab1-8/rules?ref=refs%2Fheads%2Fmain`<br>`remote:`<br>`remote: - Changes must be made through a pull request.`<br>`remote:`<br>`remote: - Required status check "ci" is expected.`<br>`remote:`<br>`To github.com:aCannedFish/ops-lab1-8.git`<br>` ! [remote rejected] main -> main (push declined due to repository rule violations)`<br>`error: failed to push some refs to 'github.com:aCannedFish/ops-lab1-8.git'` |
 | 第一轮：失败的 PR 运行 | <链接> |
 | 第一轮：修复后通过的 PR 运行 | <链接> |
 | 第一轮：合入 main 后的运行（含制品） | <链接> |
