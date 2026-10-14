@@ -35,9 +35,15 @@ func TestConflicts(t *testing.T) {
 }
 
 func TestValid(t *testing.T) {
-	good := Section{Weekday: 3, Start: 1, End: 2, Weeks: EvenWeeks}
-	if !good.Valid() {
-		t.Fatalf("%+v 应当合法", good)
+	good := []Section{
+		{Weekday: 3, Start: 1, End: 2, Weeks: EvenWeeks},
+		// start 与 end 相同表示只排一个节次，仍然合法
+		{Weekday: 1, Start: 3, End: 3, Weeks: AllWeeks},
+	}
+	for _, s := range good {
+		if !s.Valid() {
+			t.Errorf("%+v 应当合法", s)
+		}
 	}
 	bad := []Section{
 		{Weekday: 0, Start: 1, End: 2, Weeks: AllWeeks},
