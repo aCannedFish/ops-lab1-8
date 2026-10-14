@@ -27,9 +27,9 @@
 |---|---|
 | 规则集里启用的规则 | [main-merge-gate](https://github.com/aCannedFish/ops-lab1-8/rules/24975603)：状态为 Active，作用于默认分支 `main`，Bypass list 为空，管理员也不能绕过。启用 Restrict deletions、Block force pushes、Require a pull request before merging（Required approvals：1）、Require status checks to pass（必需检查：`ci`，来源为 GitHub Actions；未要求分支在合并前更新到最新主干）。 |
 | 组长直接 `git push origin main` 被拒的终端输出 | 使用组长 `aCannedFish` 账号（仓库管理员），创建一个空提交后执行 `git push origin main`，退出码为 1。实际输出：<br>`remote: error: GH013: Repository rule violations found for refs/heads/main.`<br>`remote: Review all repository rules at https://github.com/aCannedFish/ops-lab1-8/rules?ref=refs%2Fheads%2Fmain`<br>`remote:`<br>`remote: - Changes must be made through a pull request.`<br>`remote:`<br>`remote: - Required status check "ci" is expected.`<br>`remote:`<br>`To github.com:aCannedFish/ops-lab1-8.git`<br>` ! [remote rejected] main -> main (push declined due to repository rule violations)`<br>`error: failed to push some refs to 'github.com:aCannedFish/ops-lab1-8.git'` |
-| 第一轮：失败的 PR 运行 | <链接> |
-| 第一轮：修复后通过的 PR 运行 | <链接> |
-| 第一轮：合入 main 后的运行（含制品） | <链接> |
+| 第一轮：失败的 PR 运行 | [PR #4](https://github.com/aCannedFish/ops-lab1-8/pull/4) 的 [ci #8](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38568957560)：格式、vet 通过，TestConflicts/单周对双周不冲突 与 TestConflictEndpoint 失败；当时必需检查 ci 为 FAILURE，PR 的 mergeStateStatus 为 BLOCKED，同时尚缺成员审批。 |
+| 第一轮：修复后通过的 PR 运行 | [ci #9](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38569113229)：追加修复提交 3cfa07fc4239769d5a96ba9c1dde77578aec6623，恢复 weeksOverlap 的周次判断；格式、vet、测试全部通过，保留新增的双周重叠测试。 |
+| 第一轮：合入 main 后的运行（含制品） | [PR #4](https://github.com/aCannedFish/ops-lab1-8/pull/4) 经 VigilLover 审批后 squash 合入，主干提交为 162fef9f00ef878e1f31409c8d78c81b040d748d。[ci #10](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38570502600) 全部通过，产出 [artifact enroll-conflict-162fef9f00ef878e1f31409c8d78c81b040d748d-10](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38570502600/artifacts/11897147070)，包含 tar.gz 与对应 .sha256。 |
 | 第二轮：找到的缺陷，以及现有测试为何无法发现它 | <一两句话> |
 | 第二轮：仅含缺陷时仍然通过的运行 | <链接> |
 | 第二轮：补测试后失败的运行 | <链接> |
@@ -78,15 +78,15 @@
 
 时间均从 GitHub 页面读取，并注明时区。
 
-第一轮 gate 演练的时间线：
+第一轮 gate 演练的时间线（北京时间，UTC+8；CI 结束时间取该工作流唯一 ci job 的 completed_at，修复推送时间取 GitHub 仓库 Activity 的 push 事件）：
 
 | 事件 | 时间 | 链接 |
 |---|---|---|
-| 发起 PR | <填写> | <PR 链接> |
-| 第一次 `ci` 失败（运行结束） | <填写> | <链接> |
-| 推送修复提交 | <填写> | <链接> |
-| `ci` 通过（运行结束） | <填写> | <链接> |
-| 合入 main | <填写> | <链接> |
+| 发起 PR | 2026-10-14 21:05:38 | [PR #4](https://github.com/aCannedFish/ops-lab1-8/pull/4) |
+| 第一次 `ci` 失败（运行结束） | 2026-10-14 21:06:01 | [ci #8](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38568957560/job/115868783325) |
+| 推送修复提交 | 2026-10-14 21:06:46 | [修复提交](https://github.com/aCannedFish/ops-lab1-8/commit/3cfa07fc4239769d5a96ba9c1dde77578aec6623)、[推送记录](https://github.com/aCannedFish/ops-lab1-8/activity?ref=lab1%2Fgate-round1) |
+| `ci` 通过（运行结束） | 2026-10-14 21:07:09 | [ci #9](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38569113229/job/115869315003) |
+| 合入 main | 2026-10-14 21:17:02 | [PR #4](https://github.com/aCannedFish/ops-lab1-8/pull/4)、[squash 提交](https://github.com/aCannedFish/ops-lab1-8/commit/162fef9f00ef878e1f31409c8d78c81b040d748d) |
 
 提交到发布的间隔，至少记录三个合入的 PR：
 
@@ -145,6 +145,11 @@
 
 每位成员一行，只填写 GitHub 用户名，无需填写姓名；行数应与小组人数一致。
 
+以下记录截至第一轮演练 PR #4 合入，依据各 PR 的作者与实际审批记录填写。
+
 | GitHub 用户名 | 发起并合入的 PR 编号 | 审批过的 PR 编号 |
 |---|---|---|
-| <用户名> | <编号> | <编号> |
+| aCannedFish | [#2](https://github.com/aCannedFish/ops-lab1-8/pull/2) | [#3](https://github.com/aCannedFish/ops-lab1-8/pull/3) |
+| CharonRyui | [#1](https://github.com/aCannedFish/ops-lab1-8/pull/1) | [#2](https://github.com/aCannedFish/ops-lab1-8/pull/2) |
+| 1JI0O | [#3](https://github.com/aCannedFish/ops-lab1-8/pull/3)、[#4](https://github.com/aCannedFish/ops-lab1-8/pull/4) | 暂无 |
+| VigilLover | 暂无 | [#4](https://github.com/aCannedFish/ops-lab1-8/pull/4) |
