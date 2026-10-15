@@ -173,9 +173,80 @@ go=go1.26.9
 
 | 选做 | 完成情况与证据 |
 |---|---|
-| O1 容器镜像 | <未做 / 链接、镜像摘要（digest）、运行容器的主机架构> |
-| O2 缓存对反馈时间的影响 | <未做 / 预期、数据与结论> |
-| O3 迁移到小组项目 | <未做 / 仓库链接> |
+| O1 容器镜像 | 已实现，见 [PR #11](https://github.com/aCannedFish/ops-lab1-8/pull/11)；本地验证及发布后的取证步骤见下文。正式 GHCR digest 与匿名拉取结果待合入后发布验证。 |
+| O2 缓存对反馈时间的影响 | 已完成两组各 5 次运行，全部成功；[PR #11](https://github.com/aCannedFish/ops-lab1-8/pull/11) 默认缓存，[PR #12](https://github.com/aCannedFish/ops-lab1-8/pull/12) 为不合并的无缓存对照。预期、逐次数据、波动与局限见下文。 |
+| O3 迁移到小组项目 | 尚未迁移：未提供目标项目仓库，不能以本示例的流水线或迁移计划作为实际迁移证据。所需差异见下文。 |
+
+### O1：Release 附件构建镜像
+
+[PR #11](https://github.com/aCannedFish/ops-lab1-8/pull/11) 新增同一 `release.yml` 内的 `image` job，`needs: release` 保证先生成附件。镜像 job 下载该 tag 的 `enroll-conflict_<版本>_linux_amd64.tar.gz` 和 `.sha256`，校验后解压，将解压目录作为 Docker 构建上下文。仓库的 `Dockerfile` 仅复制 `enroll-conflict` 和 `BUILD_INFO`，没有重新编译。镜像名称通过 `${GITHUB_REPOSITORY,,}` 转小写，发布至 `ghcr.io/acannedfish/ops-lab1-8:<tag>`，声明平台 `linux/amd64`；只有镜像 job 获得 `packages: write`。
+
+本地已下载 v1.0.0 附件，`sha256sum -c` 返回 `OK`，Docker 构建并运行 `-version` 成功。运行容器的本地主机 `uname -m` 为 `x86_64`，Docker 服务端为 `linux/x86_64`，镜像平台为 `linux/amd64`，输出如下：
+
+```text
+enroll-conflict version=1.0.0 commit=3fdf50a724b1206ca62c8d602b7ceaa534f257a7 build_no=1 go=go1.26.9
+```
+
+本地镜像摘要为 `sha256:460bffc7330ad7885a538b07e07d0c50c20f552c47a8d73534f76c899bf5adaf`，已用 `ops-lab1-o1@sha256:460bffc7330ad7885a538b07e07d0c50c20f552c47a8d73534f76c899bf5adaf` 而非 tag 运行容器，`/healthz` 返回 `ok`，`/version` 与上述版本一致。另从容器复制二进制，与解压后的附件执行 `cmp`，结果相同，二进制 SHA-256 为 `abe945029c49c5a9012ed371016d3dd21679892b8294b47d01140210ede49b0f`。
+
+以上为本地验证，不是 GHCR 发布证明。`main` 的规则要求 PR 审批及 `ci` 通过；PR 合入后，需在 main 历史上的提交创建新的版本 tag。镜像 job 将在 Job Summary 中记录实际 GHCR digest、主机内核架构、Docker 服务端架构和镜像平台，并执行下列形式的命令，以摘要固定运行对象：
+
+```bash
+docker run --rm --platform linux/amd64 \
+  ghcr.io/acannedfish/ops-lab1-8@sha256:<本次推送的摘要> -version
+```
+
+镜像中的二进制是 `linux/amd64`，不提供多架构构建。在 Apple 芯片等 arm64 主机上仍需 `--platform linux/amd64`，依赖 Docker 的模拟支持，运行速度可能降低。
+
+**为什么不拆成另一个 Release 事件工作流？** 发布步骤使用仓库内置 `GITHUB_TOKEN` 创建 Release。为防止自动化递归触发，使用该 token 产生的事件通常不会启动新工作流（`workflow_dispatch` 和 `repository_dispatch` 是例外），因此不能期待 `release: published` 工作流因此运行。将镜像 job 放在同一工作流并显式依赖发布 job，可以沿用当前运行的上下文及已生成的 Release 附件。参见 [Triggering a workflow](https://docs.github.com/en/actions/how-tos/writing-workflows/choosing-when-your-workflow-runs/triggering-a-workflow#triggering-a-workflow-from-a-workflow)。
+
+**匿名拉取检查。** GHCR 新包默认私有，`org.opencontainers.image.source` 将包关联到仓库，但仓库公开不能代替匿名拉取验证。工作流使用临时空 Docker 配置执行 `docker pull --platform linux/amd64 <image>@<digest>`，将成功或失败写入 Summary，失败时保留日志并提示检查包可见性。需结合 [包设置](https://github.com/users/aCannedFish/packages/container/ops-lab1-8/settings)确认实际权限；发布前不能声称已可匿名拉取。参见 [Configuring package access](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility)。
+
+### O2：缓存实验
+
+**实验前预期（在创建无缓存 PR 和重跑之前记录）。** 本项目的 `go.mod` 没有第三方依赖，所以预计节省的依赖下载时间接近 0 秒；但 `setup-go` 同时缓存 Go 编译产物，标准库及项目代码在 `vet`、`test` 中仍会使用编译缓存。因此预计热缓存会缩短检查耗时，可能达到数十秒，净收益应扣除缓存下载、解压和保存的开销，不能预设“没有依赖就完全没有收益”。实验前查询仓库 Actions Cache，main 已有约 45 MB 缓存，键中 Go 版本为 `1.26.9`。将用相同的 `ubuntu-24.04`、Go `1.26.9` 和 Go 源码，以两个 PR 的 `ci` 作为比较，避免 main 的 push 额外打包与上传影响对照。
+
+**实验方法。** 预期先记录在本地文档，并在创建 [PR #12](https://github.com/aCannedFish/ops-lab1-8/pull/12) 时写入其初始说明（09:35:12 UTC，早于无缓存首次运行 09:35:16 UTC）；文档随后随 [提交 d7fb433](https://github.com/aCannedFish/ops-lab1-8/commit/d7fb4335ffc09cb5d1d459c1d5f15e17e859969b) 推送。对照 PR 相对 main 的唯一改动是增加 `cache: false`，该 PR 不合并。缓存开启组使用 [PR #11](https://github.com/aCannedFish/ops-lab1-8/pull/11) 的 `ci #26`，关闭组使用 `ci #27`；两者 Go 源码、测试、Makefile、Go 版本和 ci 检查步骤完全相同，参与实验的 #11 提交仅修改 tag 触发的 release 工作流。各保留首次运行，再通过 Re-run all jobs（`gh run rerun <run_id>`，未指定 `--failed` 或 job）重跑 4 次，尝试间没有修改提交。两组首轮依次启动，此后重跑时间大致交错并有并行，未控制分配到的物理主机。
+
+**全部数据。** 日期均为 2026-10-15，时间为 UTC，来源为 GitHub Actions 的对应 attempt/job 链接及 API `run_started_at`、`updated_at`、job/step 的 `started_at` 和 `completed_at`。job 时长用于主要比较，不含排队；反馈时长为该次 `run_started_at` 到 `updated_at`，包含等待调度及工作流收尾。API 时间精度为秒，步骤显示 0 秒表示不足约 1 秒，不表示未执行。
+
+| 缓存 | 运行 / attempt（证据） | job 开始（UTC） | job 时长 | 反馈时长 | setup-go | vet | test | 工具链来源 / runner 镜像版本 |
+|---|---|---|---:|---:|---:|---:|---:|---|
+| 开 | [ci #26 / 1](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38713827030/job/116351527993) | 09:33:38 | 17 s | 20 s | 3 s | 6 s | 1 s | 预装 / `20261012.334.1` |
+| 开 | [ci #26 / 2](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38713827030/job/116352668245) | 09:36:27 | 17 s | 30 s | 9 s | 0 s | 0 s | 下载 / `20261004.327.1` |
+| 开 | [ci #26 / 3](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38713827030/job/116352919869) | 09:37:02 | 16 s | 21 s | 10 s | 0 s | 0 s | 下载 / `20261004.327.1` |
+| 开 | [ci #26 / 4](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38713827030/job/116353156390) | 09:37:38 | 20 s | 26 s | 4 s | 8 s | 2 s | 预装 / `20261012.334.1` |
+| 开 | [ci #26 / 5](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38713827030/job/116353396137) | 09:38:12 | 13 s | 18 s | 2 s | 5 s | 1 s | 预装 / `20261012.334.1` |
+| 关 | [ci #27 / 1](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38714036018/job/116352222696) | 09:35:19 | 33 s | 36 s | 9 s | 14 s | 3 s | 下载 / `20261004.327.1` |
+| 关 | [ci #27 / 2](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38714036018/job/116352640455) | 09:36:21 | 24 s | 30 s | 1 s | 13 s | 2 s | 预装 / `20261012.334.1` |
+| 关 | [ci #27 / 3](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38714036018/job/116352932883) | 09:37:05 | 30 s | 36 s | 2 s | 19 s | 3 s | 预装 / `20261012.334.1` |
+| 关 | [ci #27 / 4](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38714036018/job/116353250767) | 09:37:51 | 23 s | 28 s | 2 s | 14 s | 2 s | 预装 / `20261012.334.1` |
+| 关 | [ci #27 / 5](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38714036018/job/116353549151) | 09:38:35 | 37 s | 42 s | 11 s | 14 s | 3 s | 下载 / `20261004.327.1` |
+
+| 指标 | 默认缓存（5 次） | 关闭缓存（5 次） |
+|---|---:|---:|
+| job 平均时长 | 16.6 s | 29.4 s |
+| job 中位数 | 17 s | 30 s |
+| job 范围 | 13～20 s | 23～37 s |
+| 反馈平均时长 | 23.0 s | 34.4 s |
+| 反馈范围 | 18～30 s | 28～42 s |
+
+**观察与结论。** 默认缓存组的 5 次日志均出现 `Cache restored successfully`，恢复同一个约 43 MiB 的缓存键；无缓存组均为 `cache: false`，没有恢复该编译缓存。默认缓存组 job 平均少 12.8 秒，约为关闭组的 43.5%，反馈平均少 11.4 秒；这些是本次样本的描述统计。`vet` 与 `test` 的耗时缩短支持“标准库及项目编译缓存仍有收益”的预期；`make test` 使用 `go test -count=1`，没有跳过测试执行。`Found in cache @ /opt/hostedtoolcache/...` 指 runner 预装的 Go 工具链，即使 `cache: false` 也可能出现，与 Actions 恢复的 `GOCACHE` / `GOMODCACHE` 不同。所分配的 runner 有两个镜像版本，工具链下载使 setup-go 耗时明显增加；缓存下载、网络、共享主机 CPU/磁盘负载以及排队也会波动，甚至有缓存 #26/2 与无缓存 #27/2 的反馈时长都为 30 秒。因此本次数据支持保留默认缓存，但不能把平均差值视为每次运行的固定收益。
+
+**局限。** 每组仅 5 次，集中于同一时间段，未随机化执行顺序，也没有锁定同一 runner 镜像、硬件或负载。默认缓存组测量的是现有热缓存，没有测首次未命中及上传成本，且跨源码版本可能只复用部分编译结果。无缓存组禁用的是 setup-go 的模块及编译缓存，不是清空 runner 的所有系统缓存或工具链。本项目没有第三方依赖、PR 不执行 package/upload，结论不能直接推广到大型依赖项目、main 的完整制品流水线或冷缓存；如需准确量化，应增加样本、跨时段重复并控制 runner 镜像等因素。
+
+### O3：迁移所需的项目差异
+
+当前代码载体仍是统一示例 `enroll-conflict`，本记录没有目标小组项目的仓库链接，也没有迁移后的 PR 或运行证据，故 O3 尚未完成。实际迁移需要先检查目标项目的构建入口、测试、依赖锁文件、运行时和部署形式，再修改对应仓库；不能仅复制本实验的文档就认定完成。
+
+| 项目差异 | 迁移时需要核对与调整 |
+|---|---|
+| 语言和依赖 | 以目标项目工具链及锁文件配置安装、缓存、格式检查、静态检查和测试，不直接沿用 Go 版本与 Makefile 目标。 |
+| 测试环境 | 若使用数据库、外部服务或前端浏览器，需要可重复的测试环境和必要配置；必需检查名称须与实际 job 一致。 |
+| 分支保护 | 在目标仓库配置 PR、审批和必需状态检查；用实际失败及修复的 PR 验证 gate。 |
+| 发布制品 | 明确可部署制品、版本及提交追溯信息；保留 main 历史检查和附件校验，按目标项目更改包名及目录。 |
+| 容器运行时 | 本示例是静态 Go 二进制，可用 `scratch`；动态链接程序、JVM、Node 或 Python 项目需要相应运行时、依赖及启动方式。 |
+| 发布及回退 | 在目标仓库完成 tag 发布、下载和运行制品、回退旧版本，记录实际链接及迁移中遇到的差异。 |
 
 ## 8. 成员贡献
 
