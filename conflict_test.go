@@ -12,6 +12,7 @@ func TestConflicts(t *testing.T) {
 		want bool
 	}{
 		{"同一时段每周上课", mon(1, 2, AllWeeks), mon(1, 2, AllWeeks), true},
+		{"同一节次的两个每周班冲突", mon(3, 3, AllWeeks), mon(3, 3, AllWeeks), true},
 		{"节次部分重叠", mon(1, 3, AllWeeks), mon(3, 4, AllWeeks), true},
 		{"节次首尾相接不冲突", mon(1, 2, AllWeeks), mon(3, 4, AllWeeks), false},
 		{"不同星期不冲突", mon(1, 2, AllWeeks), Section{Weekday: 2, Start: 1, End: 2, Weeks: AllWeeks}, false},
