@@ -171,7 +171,7 @@ docker run --rm --platform linux/amd64 \
 
 **实验前预期（在创建无缓存 PR 和重跑之前记录）。** 本项目的 `go.mod` 没有第三方依赖，所以预计节省的依赖下载时间接近 0 秒；但 `setup-go` 同时缓存 Go 编译产物，标准库及项目代码在 `vet`、`test` 中仍会使用编译缓存。因此预计热缓存会缩短检查耗时，可能达到数十秒，净收益应扣除缓存下载、解压和保存的开销，不能预设“没有依赖就完全没有收益”。实验前查询仓库 Actions Cache，main 已有约 45 MB 缓存，键中 Go 版本为 `1.26.9`。将用相同的 `ubuntu-24.04`、Go `1.26.9` 和 Go 源码，以两个 PR 的 `ci` 作为比较，避免 main 的 push 额外打包与上传影响对照。
 
-**实验方法。** 预期先在文档提交 `2602845` 中记录，然后创建 [PR #12](https://github.com/aCannedFish/ops-lab1-8/pull/12)，其相对 main 的唯一改动是增加 `cache: false`，该 PR 不合并。缓存开启组使用 [PR #11](https://github.com/aCannedFish/ops-lab1-8/pull/11) 的 `ci #26`，关闭组使用 `ci #27`；两者 Go 源码、测试、Makefile、Go 版本和 ci 检查步骤完全相同，参与实验的 #11 提交仅修改 tag 触发的 release 工作流。各保留首次运行，再通过 Re-run all jobs（`gh run rerun <run_id>`，未指定 `--failed` 或 job）重跑 4 次，尝试间没有修改提交。两组首轮依次启动，此后重跑时间大致交错并有并行，未控制分配到的物理主机。
+**实验方法。** 预期先记录在本地文档，并在创建 [PR #12](https://github.com/aCannedFish/ops-lab1-8/pull/12) 时写入其初始说明（09:35:12 UTC，早于无缓存首次运行 09:35:16 UTC）；文档随后随 [提交 d7fb433](https://github.com/aCannedFish/ops-lab1-8/commit/d7fb4335ffc09cb5d1d459c1d5f15e17e859969b) 推送。对照 PR 相对 main 的唯一改动是增加 `cache: false`，该 PR 不合并。缓存开启组使用 [PR #11](https://github.com/aCannedFish/ops-lab1-8/pull/11) 的 `ci #26`，关闭组使用 `ci #27`；两者 Go 源码、测试、Makefile、Go 版本和 ci 检查步骤完全相同，参与实验的 #11 提交仅修改 tag 触发的 release 工作流。各保留首次运行，再通过 Re-run all jobs（`gh run rerun <run_id>`，未指定 `--failed` 或 job）重跑 4 次，尝试间没有修改提交。两组首轮依次启动，此后重跑时间大致交错并有并行，未控制分配到的物理主机。
 
 **全部数据。** 日期均为 2026-10-15，时间为 UTC，来源为 GitHub Actions 的对应 attempt/job 链接及 API `run_started_at`、`updated_at`、job/step 的 `started_at` 和 `completed_at`。job 时长用于主要比较，不含排队；反馈时长为该次 `run_started_at` 到 `updated_at`，包含等待调度及工作流收尾。API 时间精度为秒，步骤显示 0 秒表示不足约 1 秒，不表示未执行。
 
