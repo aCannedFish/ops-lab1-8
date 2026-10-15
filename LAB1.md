@@ -9,8 +9,8 @@
 | 小组 | 第 8 组 |
 | 仓库地址 | <https://github.com/aCannedFish/ops-lab1-8> |
 | 代码载体 | 统一示例 `enroll-conflict`（Go） |
-| runner 与语言版本 | `ubuntu-24.04`，Go `1.26.9`；[ci 第 3 次运行](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38353330057)成功，已产出 artifact `enroll-conflict-d24ae3fadbb46bceed0a8d8556e2f8a598109187-3` |
-| 合并方式 | squash（仓库仅允许此方式；[PR #1](https://github.com/aCannedFish/ops-lab1-8/pull/1)合并后对应提交 `d24ae3fadbb46bceed0a8d8556e2f8a598109187`） |
+| runner 与语言版本 | `ubuntu-24.04`，Go `1.26.9`；[ci 第 3 次运行](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38353330057)成功，生成了 artifact `enroll-conflict-d24ae3fadbb46bceed0a8d8556e2f8a598109187-3` |
+| 合并方式 | squash（仓库仅允许此方式；[PR #1](https://github.com/aCannedFish/ops-lab1-8/pull/1) 合并后对应提交 `d24ae3fadbb46bceed0a8d8556e2f8a598109187`） |
 
 ## 2. 任务 0：本地基线
 
@@ -19,7 +19,7 @@
 | 第一次 `make package` 得到的 BUILD_INFO（粘贴） | 在 Linux 主机 `ecs-249f` 的 `/home/ubuntu/lab1-local` 中克隆[课程模板仓库](https://github.com/zilinglius/operations-2026-lab1-sample)，执行 `make package VERSION=1.0.0 BUILD_NO=1`。两次构建均设置 `GOMAXPROCS=1`、`GOFLAGS=-p=1`、`GOMEMLIMIT=256MiB`。实际输出：<br>`name=enroll-conflict`<br>`version=1.0.0`<br>`build_no=1`<br>`run_id=local`<br>`commit=7b63b41c13f061439997b0e6e4eaa2af922a7aa1`<br>`go=go1.26.9` |
 | 修改一行、不提交，再次打包：BUILD_INFO 是否变化？二进制文件的 sha256 是否变化？（贴出两次的 sha256） | 将 `conflict.go` 第 1 行改为 `package main // task0 baseline observation`，不提交，以相同参数再次打包。`BUILD_INFO` 没有变化，二进制 sha256 发生变化。两次 `sha256sum` 的实际输出：<br>第一次：`f23447d406c42af7dd35e23c2d1b2f15484cfb709cc9b4bb1262643694b8528e  dist/enroll-conflict_1.0.0_linux_amd64/enroll-conflict`<br>第二次：`fd9e4cdfb5dba94309d1eb422110fa4e4217bce6cd13a5c8e22048f5ca1fa098  dist/enroll-conflict_1.0.0_linux_amd64/enroll-conflict` |
 | 两次 `go version -m` 输出中的 vcs 行有何不同？ | 第一次：<br>`build vcs=git`<br>`build vcs.revision=7b63b41c13f061439997b0e6e4eaa2af922a7aa1`<br>`build vcs.time=2026-10-12T16:26:07Z`<br>`build vcs.modified=false`<br>第二次：<br>`build vcs=git`<br>`build vcs.revision=7b63b41c13f061439997b0e6e4eaa2af922a7aa1`<br>`build vcs.time=2026-10-12T16:26:07Z`<br>`build vcs.modified=true`<br>仅 `vcs.modified` 从 `false` 变为 `true`，表示第二次构建包含未提交的工作区改动。虽然只修改了注释，这项内嵌构建信息仍使二进制内容及哈希发生变化。 |
-| 仅凭 BUILD_INFO，能否回答该包是什么、在哪台机器上、何时、用哪份代码构建？哪一项信息会出错？ | 不能完整回答。`name`、`version` 能标识包及版本，`go` 记录工具链版本；构建主机和构建时间没有记录，`go version -m` 中的 `vcs.time` 也是提交时间。`commit` 取本地 HEAD，第二次构建时仍为 `7b63b41c13f061439997b0e6e4eaa2af922a7aa1`，没有反映未提交的注释改动。因此，若仅凭该字段认定制品完全来自此提交，会把实际构建源码认错；`BUILD_INFO` 本身没有标记工作区是否干净。 |
+| 仅凭 BUILD_INFO，能否回答该包是什么、在哪台机器上、何时、用哪份代码构建？哪一项信息会出错？ | 不能完整回答。`name`、`version` 能标识包及版本，`go` 记录工具链版本；其中没有记录构建主机和构建时间，`go version -m` 中的 `vcs.time` 记录的也是提交时间。`commit` 取自本地 HEAD，第二次构建时仍为 `7b63b41c13f061439997b0e6e4eaa2af922a7aa1`，没有反映未提交的注释改动。因此，仅凭该字段会误以为构建时使用的源码与该提交完全一致；`BUILD_INFO` 本身没有标记工作区是否有未提交的改动。 |
 
 ## 3. 证据
 
@@ -27,13 +27,13 @@
 |---|---|
 | 规则集里启用的规则 | [main-merge-gate](https://github.com/aCannedFish/ops-lab1-8/rules/24975603)：状态为 Active，作用于默认分支 `main`，Bypass list 为空，管理员也不能绕过。启用 Restrict deletions、Block force pushes、Require a pull request before merging（Required approvals：1）、Require status checks to pass（必需检查：`ci`，来源为 GitHub Actions；未要求分支在合并前更新到最新主干）。 |
 | 组长直接 `git push origin main` 被拒的终端输出 | 使用组长 `aCannedFish` 账号（仓库管理员），创建一个空提交后执行 `git push origin main`，退出码为 1。实际输出：<br>`remote: error: GH013: Repository rule violations found for refs/heads/main.`<br>`remote: Review all repository rules at https://github.com/aCannedFish/ops-lab1-8/rules?ref=refs%2Fheads%2Fmain`<br>`remote:`<br>`remote: - Changes must be made through a pull request.`<br>`remote:`<br>`remote: - Required status check "ci" is expected.`<br>`remote:`<br>`To github.com:aCannedFish/ops-lab1-8.git`<br>` ! [remote rejected] main -> main (push declined due to repository rule violations)`<br>`error: failed to push some refs to 'github.com:aCannedFish/ops-lab1-8.git'` |
-| 第一轮：失败的 PR 运行 | [PR #4](https://github.com/aCannedFish/ops-lab1-8/pull/4) 的 [ci #8](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38568957560)：格式、vet 通过，TestConflicts/单周对双周不冲突 与 TestConflictEndpoint 失败；当时必需检查 ci 为 FAILURE，PR 的 mergeStateStatus 为 BLOCKED，同时尚缺成员审批。 |
-| 第一轮：修复后通过的 PR 运行 | [ci #9](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38569113229)：追加修复提交 3cfa07fc4239769d5a96ba9c1dde77578aec6623，恢复 weeksOverlap 的周次判断；格式、vet、测试全部通过，保留新增的双周重叠测试。 |
+| 第一轮：失败的 PR 运行 | [PR #4](https://github.com/aCannedFish/ops-lab1-8/pull/4) 的 [ci #8](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38568957560)：格式检查和 vet 通过，`TestConflicts/单周对双周不冲突` 与 `TestConflictEndpoint` 失败；当时必需检查 `ci` 为 `FAILURE`，PR 的 `mergeStateStatus` 为 `BLOCKED`，同时尚缺成员审批。 |
+| 第一轮：修复后通过的 PR 运行 | [ci #9](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38569113229)：追加修复提交 `3cfa07fc4239769d5a96ba9c1dde77578aec6623`，恢复 `weeksOverlap` 的周次判断，并保留新增的双周重叠测试；格式检查、vet 和测试全部通过。 |
 | 第一轮：合入 main 后的运行（含制品） | [PR #4](https://github.com/aCannedFish/ops-lab1-8/pull/4) 经 VigilLover 审批后 squash 合入，主干提交为 162fef9f00ef878e1f31409c8d78c81b040d748d。[ci #10](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38570502600) 全部通过，产出 [artifact enroll-conflict-162fef9f00ef878e1f31409c8d78c81b040d748d-10](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38570502600/artifacts/11897147070)，包含 tar.gz 与对应 .sha256。 |
-| 第二轮：找到的缺陷，以及现有测试为何无法发现它 | `Section.Valid` 的范围判断被改成 `s.End <= s.Start`，把 start 与 end 相同的单节次时段判为非法；现有 `TestValid` 的合法用例只有 `{Weekday: 3, Start: 1, End: 2}`，非法用例覆盖的是 start > end，两者都不含 start == end 这条边界，因此该改动不会让 `make test` 失败。 |
-| 第二轮：仅含缺陷时仍然通过的运行 | [PR #6](https://github.com/aCannedFish/ops-lab1-8/pull/6) 的 [ci #13](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38600811332)：分支上只有缺陷提交 340d8bd，格式、vet、测试全部通过，gate 没有拦住它。 |
-| 第二轮：补测试后失败的运行 | [ci #14](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38600929615)：追加用例提交 7e55b98，新增的单节次合法用例在 TestValid 中失败；格式与 vet 通过。 |
-| 第二轮：撤销缺陷后通过的运行 | [ci #15](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38601111763)：提交 279f221 恢复 `s.End < s.Start`，保留新增用例，全部通过。 |
+| 第二轮：找到的缺陷，以及现有测试为何无法发现它 | `Section.Valid` 的范围判断被改成 `s.End <= s.Start`，把 start 与 end 相同的单节次时段判为非法。当时 `TestValid` 的合法用例只有 `{Weekday: 3, Start: 1, End: 2}`，关于节次范围的非法用例覆盖了 `start > end`，两类用例都未覆盖 `start == end` 的边界，因此该改动不会让 `make test` 失败。 |
+| 第二轮：仅含缺陷时仍然通过的运行 | [PR #6](https://github.com/aCannedFish/ops-lab1-8/pull/6) 的 [ci #13](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38600811332)：分支上只有缺陷提交 `340d8bd`，格式检查、vet 和测试全部通过，gate 没有发现该缺陷。 |
+| 第二轮：补测试后失败的运行 | [ci #14](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38600929615)：追加测试提交 `7e55b98`，新增的单节次合法用例在 `TestValid` 中失败；格式检查与 vet 通过。 |
+| 第二轮：撤销缺陷后通过的运行 | [ci #15](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38601111763)：提交 `279f221` 恢复 `s.End < s.Start`，保留新增用例，检查全部通过。 |
 | 第二轮：合入 main 后的运行（含制品） | [PR #6](https://github.com/aCannedFish/ops-lab1-8/pull/6) 经 1JI0O 审批后 squash 合入，主干提交为 9364840e2faec689ef86d47b489809f37724e90e，main 上只新增了这一条测试用例。[ci #16](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38688536767) 全部通过，产出 [artifact enroll-conflict-9364840e2faec689ef86d47b489809f37724e90e-16](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38688536767/artifacts/11951360180)，包含 tar.gz 与对应 .sha256。 |
 | 未合入分支上的 tag 被 release gate 拒绝的运行 | [release #2](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38709690916)：在临时分支 `scratch/gate-test` 的未合入提交 `301b6eb26b55dd1a90dfb5244fe6432c621f9bf1` 上创建测试 tag `v0.0.1`。[Release gate 步骤](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38709690916/job/116337716093)输出 `Tag commit 301b6eb26b55dd1a90dfb5244fe6432c621f9bf1 is not in origin/main history.`，以退出码 1 失败；工具链安装、检查、打包和创建 Release 均跳过，未生成测试 Release。测试 tag 和临时分支已从远程及本地删除。 |
 | Release v1.0.0 | [v1.0.0](https://github.com/aCannedFish/ops-lab1-8/releases/tag/v1.0.0)：在 [PR #8](https://github.com/aCannedFish/ops-lab1-8/pull/8) 合入 main 的提交 `3fdf50a724b1206ca62c8d602b7ceaa534f257a7` 上创建 tag，[release #1](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38709389752) 全部通过。已下载 `enroll-conflict_1.0.0_linux_amd64.tar.gz` 和对应 `.sha256`，执行 `sha256sum -c` 得到 `enroll-conflict_1.0.0_linux_amd64.tar.gz: OK`；包内 `BUILD_INFO` 的版本、提交和 `run_id=38709389752` 与本次发布一致。 |
@@ -48,11 +48,11 @@
 | 版本号 | 1.0.0 | 1.0.1 |
 | 构建号 | 1 | 3 |
 | 提交号（SHA） | 3fdf50a724b1206ca62c8d602b7ceaa534f257a7 | 2918346e168cf7ece3be02d8b466a92cc4bf253a |
-| 引入该提交的 PR | https://github.com/aCannedFish/ops-lab1-8/commit/3fdf50a724b1206ca62c8d602b7ceaa534f257a7 | https://github.com/aCannedFish/ops-lab1-8/commit/2918346e168cf7ece3be02d8b466a92cc4bf253a |
+| 引入该提交的 PR | [PR #8](https://github.com/aCannedFish/ops-lab1-8/pull/8) | [PR #10](https://github.com/aCannedFish/ops-lab1-8/pull/10) |
 | 构建它的 Actions 运行（`trace.sh` 给出的链接） | https://github.com/aCannedFish/ops-lab1-8/actions/runs/38709389752 | https://github.com/aCannedFish/ops-lab1-8/actions/runs/38713497689 |
 | 制品 sha256（发布当时，取自 Release 里的 .sha256） | `fc05bdfecbfe374e4569eaa9df4618c0355ebb69a3497fbfe21795f2b3f2683e` | `8e9207e59d3585f128e4680e71bf93916c32acf9654de83d2cda1b77854318b0` |
 
-仅凭构建号能否唯一确定是哪次运行？v1.0.0 的构建号在 `ci` 和 `release` 的运行列表中各对应哪次运行？不能。`build_no` 取自 `github.run_number`，各工作流独立计数。v1.0.0 的构建号为 `1`，在 `ci` 列表中对应 [ci #1](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38352773742)（PR 触发），在 `release` 列表中对应 [release #1](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38709389752)（tag 推送触发）。实际构建 v1.0.0 制品的是后者，可由 `BUILD_INFO` 中的 `run_id=38709389752` 唯一定位该次运行；同号的 ci 运行并非该制品的构建来源。
+仅凭构建号能否唯一确定是哪次运行？v1.0.0 的构建号在 `ci` 和 `release` 的运行列表中各对应哪次运行？不能。`build_no` 取自 `github.run_number`，各工作流独立计数。v1.0.0 的构建号为 `1`，在 `ci` 列表中对应 [ci #1](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38352773742)（PR 触发），在 `release` 列表中对应 [release #1](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38709389752)（tag 推送触发）。实际构建 v1.0.0 制品的是 release #1，可通过 `BUILD_INFO` 中的 `run_id=38709389752` 唯一确定这次运行。
 
 发布 v1.0.1 之后重新下载 v1.0.0 的附件，计算得到的 sha256：`fc05bdfecbfe374e4569eaa9df4618c0355ebb69a3497fbfe21795f2b3f2683e`。与上表中发布当时的值是否一致？一致。本次重新下载附件后使用 Python hashlib 计算 SHA-256，同时核对对应 `.sha256` 文件及上表中发布当时记录的值，三者相同，说明本次复核时 v1.0.0 附件内容与原记录一致。
 
@@ -114,7 +114,7 @@ go=go1.26.9
 
 时间均从 GitHub 页面读取，并注明时区。
 
-第一轮 gate 演练的时间线（北京时间，UTC+8；CI 结束时间取该工作流唯一 ci job 的 completed_at，修复推送时间取 GitHub 仓库 Activity 的 push 事件）：
+第一轮 gate 演练的时间线（北京时间，UTC+8；CI 结束时间取工作流中唯一的 `ci` job 的 `completed_at`，修复推送时间取 GitHub 仓库 Activity 中的 push 事件）：
 
 | 事件 | 时间 | 链接 |
 |---|---|---|
@@ -126,7 +126,7 @@ go=go1.26.9
 
 提交到发布的间隔，至少记录三个合入的 PR：
 
-以下时间均为北京时间（UTC+8）。第一个提交取该 PR 提交列表首项的 `commit.committer.date`，合入时间取 `merged_at`，发布时间取 Release 的 `published_at`；对应 Release 选择其历史首次包含该 PR 的 squash 提交的正式版本。PR #8 的首个提交经过 cherry-pick，作者时间为 16:01:12，提交者时间为 16:45:07，本表统一使用后者计算。
+以下时间均为北京时间（UTC+8）。第一个提交的时间取该 PR 提交列表首项的 `commit.committer.date`，合入时间取 `merged_at`，发布时间取 Release 的 `published_at`。对应 Release 选取首次包含该 PR 的 squash 提交的正式版本。PR #8 的首个提交经过 cherry-pick，作者时间为 16:01:12，提交者时间为 16:45:07，本表统一使用提交者时间计算。
 
 | PR | 第一个提交的时间 | 合入时间 | 对应 Release 的发布时间 | 提交到发布的间隔 |
 |---|---|---|---|---|
@@ -136,7 +136,7 @@ go=go1.26.9
 
 `ci` 工作流的运行时长（从 Actions 页面读取），至少 5 次，全部列出，不要只给出平均值：
 
-以下为两轮 gate 演练的 7 次运行，均为 attempt 1，采用默认缓存。工作流时长按 GitHub 对应运行的 `updated_at - run_started_at` 计算，包含调度等待和收尾；备注另列 Actions job 页中唯一 `ci` job 的执行时长。第一张时间线使用 job 结束时刻，两种口径的收尾时间可能相差约 1 秒。
+以下为两轮 gate 演练的 7 次运行，均为 attempt 1，采用默认缓存。工作流时长按 GitHub 对应运行的 `updated_at - run_started_at` 计算，包含调度等待和收尾时间；备注另列 Actions job 页面中 `ci` job 的执行时长，每次运行均只有这一个 job。第一张时间线使用 job 的结束时刻，与工作流的结束时刻可能相差约 1 秒。
 
 | 运行 | 事件（PR / push） | 时长 | 备注 |
 |---|---|---|---|
@@ -148,7 +148,7 @@ go=go1.26.9
 | [ci #15](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38601111763/attempts/1) | PR #6 | 23 s | 撤销缺陷、保留测试后通过；[job](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38601111763/job/115980301302) 执行 18 s。 |
 | [ci #16](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38688536767/attempts/1) | push main | 14 s | 第二轮合入后通过，含打包及上传；[job](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38688536767/job/116268858971) 执行 10 s。 |
 
-上述工作流时长合计 133 s，均值 19 s，中位数 20 s，范围为 14～23 s。这是本次两轮演练的描述统计，PR 检查与 main 上包含打包、上传的运行已在表中分别标明。
+上述工作流时长合计 133 s，均值 19 s，中位数 20 s，范围为 14～23 s。统计范围为本次两轮演练，表中已分别标明 PR 检查和 main 上包含打包、上传步骤的运行。
 
 ## 6. 分析问题
 
@@ -156,13 +156,13 @@ go=go1.26.9
 
 **问题 1：gate 的收益与成本。** 两轮演练中，gate 拦住了什么，没有拦住什么？用第 5 节的时间线计算：第一轮因失败多花了多少时间，其中等待 `ci` 的时间和人工修改的时间各占多少？一次 `ci` 大约需要多久，在“提交到发布的间隔”中占多大比例？第二轮补充测试之后，还有哪类问题是测试本身无法发现的？
 
-所用数据：第 3 节两轮演练的运行结果、第 5 节第一轮时间线和 7 次 CI 时长，以及 PR #4、#8、#10 的提交到发布间隔。第一轮从发起 PR 到检查通过为 `21:07:09 - 21:05:38 = 91 s`，两个检查反馈窗口各为 23 s，失败结束到修复推送的窗口为 45 s。
+所用数据：第 3 节两轮演练的运行结果、第 5 节第一轮时间线和 7 次 CI 时长，以及 PR #4、#8、#10 的提交到发布间隔。第一轮从发起 PR 到检查通过共用时 `21:07:09 - 21:05:38 = 91 s`，两次等待检查结果各用时 23 s，从检查失败到推送修复提交用时 45 s。
 
-自动 gate 拦住了第一轮已有测试覆盖的周次回归，也在第二轮补充测试后拦住了单节次边界缺陷，但第二轮只有缺陷时的 ci #13 仍然通过，说明门禁能力受测试覆盖限制。第一轮 91 s 中，等待检查反馈共 46 s，约占 50.5%，人工处理窗口为 45 s，约占 49.5%，其中反馈窗口包含事件触发和调度等待。若假设没有失败时也只需一次 23 s 的成功反馈，则失败增加的时间为 `91 - 23 = 68 s`，分解为失败检查反馈 23 s 和人工处理 45 s，分别占增量的约 33.8% 和 66.2%，人工窗口还包含发现失败、提交和推送等操作，不能当作纯编码工时。7 次工作流平均约 19 s，以单次均值除以 PR #4、#8、#10 的提交到发布间隔，分别约为 0.027%、2.49%、2.37%，这些比值没有累加一次交付中的全部 CI 与 release 运行。第一轮检查通过到合入还间隔 593 s，本组没有进一步分离其中的审批等待、人员响应和排期，因此不能把整个交付间隔都归因于 CI。补充边界测试后，错误的需求理解、未建模的业务规则、缺少负载或安全用例时的性能与安全问题，以及生产配置和外部依赖差异，仍可能未被这套测试发现。以上时间结论依赖本次固定工具链、默认缓存和共享 runner 条件，只有 7 次运行及 3 个 PR 的样本，不能直接推广为团队长期的交付效率或 gate 的因果收益。
+自动 gate 拦住了第一轮已有测试覆盖的周次判断错误，也在第二轮补充测试后拦住了单节次边界缺陷；第二轮仅引入缺陷时，ci #13 仍然通过，说明 gate 能否发现问题受测试覆盖范围的限制。第一轮的 91 s 中，等待检查结果共 46 s，约占 50.5%，人工处理用时 45 s，约占 49.5%。等待检查结果的时间包含事件触发和调度等待，人工处理时间包含发现失败、修改、提交和推送等操作，无法单独确定编码用时。若假设一次检查通过也需要 23 s，则失败多花了 `91 - 23 = 68 s`，其中等待失败结果用时 23 s，人工处理用时 45 s，分别占增加时间的约 33.8% 和 66.2%。7 次工作流的平均时长约为 19 s，占 PR #4、#8、#10 提交到发布间隔的比例分别约为 0.027%、2.49%、2.37%，这些比例仅按单次平均时长计算，未累加一次交付中的全部 CI 与 release 运行。第一轮检查通过后又过了 593 s 才合入，本组未分别测量其中的审批等待、人员响应和排期时间，因此无法确定这些因素对交付间隔各有多大影响。补充边界测试后，错误的需求理解、测试中未体现的业务规则、缺少负载或安全用例时的性能与安全问题，以及生产配置和外部依赖差异，仍可能无法被这套测试发现。上述时间结论限于本次固定工具链、默认缓存和共享 runner 的条件，7 次运行及 3 个 PR 的样本还不足以反映团队长期的交付效率，也无法据此确定 gate 对交付效率的影响。
 
 **问题 2：PR 中的构建与 main 上的构建。** 在 PR 触发的运行日志中，`github.sha` 与 `pull_request.head.sha` 是否相同？它们能否在 main 的历史中找到？答案与合并方式有关，请写明本组使用的方式。合并之后，main 上这次改动的提交号是哪个？据此说明，为什么待发布的制品只能从 main 上的提交或 tag 构建。
 
-所用数据：[PR #4 修复后的 ci #9](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38569113229/job/115869315003) 的事件日志如下；第 3 节记录了 squash 后的主干提交。以本次同步的 `main` 提交 `a7b9e4a133fdf94e681a78d33aadeea1d2ef8368` 为截止点，用 `git rev-list origin/main` 核对可达历史，下面两个 SHA 均不在主干历史中，合入后的 `162fef9f00ef878e1f31409c8d78c81b040d748d` 在其中。
+所用数据：[PR #4 修复后的 ci #9](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38569113229/job/115869315003) 的事件日志如下；第 3 节记录了 squash 后的主干提交。本次核对以 `main` 提交 `03e760869488565a01888a4c7fdf551ad31f1ddd`（PR #14 合入后）为截止点，检查其提交历史，确认下面两个 SHA 均不在主干历史中，合入后的 `162fef9f00ef878e1f31409c8d78c81b040d748d` 在其中。
 
 ```text
 github.event_name=pull_request
@@ -171,11 +171,11 @@ github.sha=5ca54507e620208172ed476797eec67d37e54234
 github.event.pull_request.head.sha=3cfa07fc4239769d5a96ba9c1dde77578aec6623
 ```
 
-本组使用 squash，日志中的两个 SHA 不同。`github.sha` 是 GitHub 为 PR 生成的临时合并测试提交，包含当时主干与分支的合并结果，`pull_request.head.sha` 是修复后分支自身的提交，含义与 [GitHub 的 PR 事件说明](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request)一致。squash 合入后，本次改动在 main 上对应[提交 `162fef9`](https://github.com/aCannedFish/ops-lab1-8/commit/162fef9f00ef878e1f31409c8d78c81b040d748d)，临时合并提交和分支原提交均未成为该主干历史的祖先，原分支的提交仍可由 PR 页面追查。临时合并测试提交也可能随主干或分支更新而变化，其 SHA 不能直接代表最终获准合入的主干版本。因此发布应从 main 历史上的提交，或指向这些提交的 tag 构建，并把最终提交号和实际构建运行写入制品，使发布对象可以关联到已合入的 PR。若采用保留分支历史的 merge commit 合并，分支 head 可能成为 main 的祖先，因此“两个原 SHA 均不在历史中”是本组 squash 与本次历史核对的结论，不能套用于所有合并方式。
+本组使用 squash 合并，日志中的两个 SHA 不同。`github.sha` 指向 GitHub 为 PR 生成的临时合并测试提交，包含当时主干与分支的合并结果；`pull_request.head.sha` 指向修复后分支自身的提交，与 [GitHub 的 PR 事件说明](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request)一致。squash 合入后，本次改动在 main 上对应[提交 `162fef9`](https://github.com/aCannedFish/ops-lab1-8/commit/162fef9f00ef878e1f31409c8d78c81b040d748d)，临时合并提交和分支原提交均未进入主干历史，原分支的提交仍可通过 PR 页面查看。临时合并测试提交也可能随主干或分支更新而变化，其 SHA 不能直接代表最终获准合入的主干版本。因此，应从 main 历史上的提交或指向这些提交的 tag 构建发布制品，并将最终提交号和实际构建运行的标识写入制品，以便追溯到已合入的 PR。若采用保留分支历史的 merge commit 合并，分支 head 可能成为 main 的祖先，因此“两个原 SHA 均不在主干历史中”的结论限于本组采用的 squash 方式和本次核对的历史。
 
 **问题 3：可重复构建。** 在本地同一个提交上按下表构建，记录哈希值。④、⑤ 需临时去掉 Makefile 中 tar 的 `--mtime=@0`，完成后用 `git checkout -- Makefile` 恢复，不要提交。
 
-所用数据：在 Linux 主机 `ecs-249f` 的独立临时克隆中，固定源提交为 v1.0.0 的 `3fdf50a724b1206ca62c8d602b7ceaa534f257a7`，工具链为 Go `1.26.9`、GNU tar `1.35`、gzip `1.12`，目标为 `linux/amd64`，`CGO_ENABLED=0`，使用 Makefile 的 `-trimpath`。①②④⑤沿用原发布参数做受控复现：`VERSION=1.0.0 BUILD_NO=1 RUN_ID=38709389752 COMMIT=3fdf50a724b1206ca62c8d602b7ceaa534f257a7`；③仅将 `BUILD_NO` 改为 `2`。五次构建均使用该主机的 `umask 0002`，并设置 `GOMAXPROCS=1`、`GOFLAGS=-p=1`、`GOMEMLIMIT=256MiB`；④⑤之间等待 3 秒，结束后已执行 `git checkout -- Makefile`，工作区恢复干净。
+所用数据：在 Linux 主机 `ecs-249f` 上临时克隆一份独立仓库，固定使用 v1.0.0 的源提交 `3fdf50a724b1206ca62c8d602b7ceaa534f257a7`。工具链为 Go `1.26.9`、GNU tar `1.35`、gzip `1.12`，构建目标为 `linux/amd64`，设置 `CGO_ENABLED=0`，并使用 Makefile 中的 `-trimpath`。①②④⑤沿用原发布参数：`VERSION=1.0.0 BUILD_NO=1 RUN_ID=38709389752 COMMIT=3fdf50a724b1206ca62c8d602b7ceaa534f257a7`；③仅将 `BUILD_NO` 改为 `2`。五次构建均使用该主机的 `umask 0002`，并设置 `GOMAXPROCS=1`、`GOFLAGS=-p=1`、`GOMEMLIMIT=256MiB`；④⑤之间等待 3 秒，结束后已执行 `git checkout -- Makefile`，工作区已无改动。
 
 | 构建 | 条件 | 二进制 sha256 | tar.gz sha256 |
 |---|---|---|---|
@@ -186,60 +186,60 @@ github.event.pull_request.head.sha=3cfa07fc4239769d5a96ba9c1dde77578aec6623
 | ⑤ | 同 ④，间隔几秒后再构建一次 | `9b060e925dc61996847d91ce98838ef0bc0e00759a24a0165b987b10d535f440` | `c9a8c5ff0cdcd68236bbfc5c222c3c1332a68a573a2ab88f4832178122bb36c5` |
 | Actions | 对 main 上的一次 push 运行执行 Re-run all jobs，比较两次尝试中 package 步骤打印的值 | attempt 1：`5306adeb2e2961f9235ec1750bf7ae793e661b33f63d5588d49920556303dc5a`<br>attempt 2：`5306adeb2e2961f9235ec1750bf7ae793e661b33f63d5588d49920556303dc5a` | attempt 1：`48fd47309894b59d0c58fda5160840668396f4a3f8ad3da4d80cc4893c7ff79f`<br>attempt 2：`48fd47309894b59d0c58fda5160840668396f4a3f8ad3da4d80cc4893c7ff79f` |
 
-Actions 对照使用同一主干提交的 [ci #21 / attempt 1](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38709075443/attempts/1) 和 [attempt 2](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38709075443/attempts/2)，后者通过 `gh run rerun 38709075443` 执行全部 job 重跑，两次均成功。其参数固定为 `VERSION=0.0.0-main BUILD_NO=21 RUN_ID=38709075443 COMMIT=3fdf50a724b1206ca62c8d602b7ceaa534f257a7`；attempt 从 1 变为 2，但未写入本项目制品。重跑沿用原事件的 SHA 与 ref，机制参见 [GitHub 重跑说明](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/re-run-workflows-and-jobs)。
+Actions 对照使用同一主干提交的 [ci #21 / attempt 1](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38709075443/attempts/1) 和 [attempt 2](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38709075443/attempts/2)，第二次通过 `gh run rerun 38709075443` 重新运行全部 job，两次均成功。构建参数固定为 `VERSION=0.0.0-main BUILD_NO=21 RUN_ID=38709075443 COMMIT=3fdf50a724b1206ca62c8d602b7ceaa534f257a7`；attempt 从 1 变为 2，该值未写入本项目制品。重跑沿用原事件的 SHA 与 ref，机制参见 [GitHub 重跑说明](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/re-run-workflows-and-jobs)。
 
-补充权限对照：①的二进制与正式 v1.0.0 附件内的二进制相同，但归档哈希不同。检查发现本机目录和二进制权限为 `0775`、`BUILD_INFO` 为 `0664`，正式附件分别为 `0755`、`0644`；在同一干净源提交上，仅对本次构建进程设置 `umask 0022`，向新的 `dist/permission-control/` 子目录使用相同追溯参数重建，二进制仍为 `abe945029c49c5a9012ed371016d3dd21679892b8294b47d01140210ede49b0f`，归档变为 `fc05bdfecbfe374e4569eaa9df4618c0355ebb69a3497fbfe21795f2b3f2683e`，与第 4 节的原发布附件一致。
+补充权限对照：①的二进制与正式 v1.0.0 附件内的二进制相同，但归档哈希不同。检查发现，本机目录和二进制的权限为 `0775`，`BUILD_INFO` 的权限为 `0664`，正式附件中对应的权限分别为 `0755`、`0644`。随后在同一源提交、工作区无改动的条件下，仅对本次构建进程设置 `umask 0022`，使用相同的追溯参数重新构建，将结果写入新的 `dist/permission-control/` 子目录。二进制哈希仍为 `abe945029c49c5a9012ed371016d3dd21679892b8294b47d01140210ede49b0f`，归档哈希变为 `fc05bdfecbfe374e4569eaa9df4618c0355ebb69a3497fbfe21795f2b3f2683e`，与第 4 节的原发布附件一致。
 
 哪些相同、哪些不同，原因分别是什么？④ 的二进制文件与 ① 是否相同？如果不同，请结合任务 0 中看到的 vcs 信息分析。据此说明制品中应当包含什么、不应包含什么。另外，`release` 在同一个提交上再次编译，而没有直接发布 `ci` 产出的主干制品：为什么这样做？这与 L-05 第 11 页的“一次构建、多处部署”是否冲突，代价是什么？
 
-①②的二进制与归档分别相同，说明在本次固定输入及环境中可以重复得到相同字节，Actions 两次尝试的相同哈希也支持这一观察。③的构建号同时写入二进制和 `BUILD_INFO`，因此改变它会使两个哈希都变化。④的二进制与①不同，因为临时修改 Makefile 使内嵌的 `vcs.modified` 从 `false` 变为 `true`，即使 Go 源码未变也会影响二进制，这与任务 0 的现象一致，相关字段见 [Go 构建信息说明](https://pkg.go.dev/runtime/debug#BuildSetting)。④⑤的二进制相同，归档却不同，因为未归一化的文件修改时间进入了 tar，`gzip -n` 只消除 gzip 自身的名称、时间信息，不能消除 tar 内部的时间差异。权限对照还表明当前 Makefile 未归一化文件权限，因此跨主机复现完整归档时，也必须控制 umask 等元数据输入。制品应包含可部署程序和版本、提交、构建号、运行号及工具链等追溯信息，并保持源码工作区干净，归档时间、属主、权限和文件顺序应受控，绝对构建路径、临时文件和无必要的当前时间不应进入可重复部分。release 再次编译是为了把 ci 的 `0.0.0-main` 改为 tag 对应的版本并写入本次发布标识，这偏离严格的“一次编译后直接晋级发布”，增加了编译、测试和构建环境变化的成本。本实验在每个 Release 生成后复用同一附件部署和回退，当前镜像 job 也直接复制附件内的程序，仍保留了制品生成后的多处复用；上述可重复结论以工具链、平台、源码状态、编译参数和归档元数据均固定为条件，不能推出任意机器上的同一提交都会生成同一个包。
+①②的二进制和归档哈希分别相同，说明在本次固定输入及环境的条件下，两次构建结果一致，Actions 两次尝试的哈希也相同。③的构建号同时写入二进制和 `BUILD_INFO`，因此改变构建号会使二进制和归档的哈希都发生变化。④的二进制与①不同，因为临时修改 Makefile 使内嵌的 `vcs.modified` 从 `false` 变为 `true`，即使 Go 源码未变也会影响二进制，这与任务 0 的现象一致，相关字段见 [Go 构建信息说明](https://pkg.go.dev/runtime/debug#BuildSetting)。④⑤的二进制相同，归档不同，因为两次打包时的文件修改时间被保留在 tar 中；`gzip -n` 只去除 gzip 自身的文件名和时间信息，tar 内部的时间差异仍然存在。权限对照还表明，当前 Makefile 未统一文件权限，因此在不同主机上复现完整归档时，也需要控制 umask 等影响文件元数据的设置。制品应包含可部署程序，以及版本、提交、构建号、运行号和工具链等追溯信息；构建时应保持源码工作区无改动，固定归档中的时间、属主、权限和文件顺序，并避免写入绝对构建路径、临时文件和无必要的当前时间。release 再次编译是为了把 ci 的 `0.0.0-main` 改为 tag 对应的版本，并写入本次发布标识，因此发布前又进行了一次构建，与严格的“一次构建、多处部署”有出入，也增加了编译、测试的开销和构建环境变化带来的风险。每个 Release 生成后，部署和回退使用同一附件，当前镜像 job 也直接复制附件内的程序，这些环节复用了已有制品；本次可重复构建的结论以工具链、平台、源码状态、编译参数和归档元数据均固定为条件。
 
 **问题 4：发布与回退。** 假设 v1.0.1 发布后发现缺陷，应当如何处理？为什么不应删除 v1.0.1 的 tag、再用同一版本号重新发布？任务 6 中将服务从 v1.0.1 切换回 v1.0.0 时，使用的是哪个文件，是否需要重新构建？请用两次 `/version` 的输出说明。如果改为从源码重新构建 v1.0.0，得到的文件与原附件是否相同（参考问题 3）？最后，如果有人删除 v1.0.0 的附件，换上一个新文件和对应的新 `.sha256`，`trace.sh` 能否发现？本组在第 4 节记录的值能否发现？可以查阅 GitHub 的 Immutable releases 设置的用途。
 
 所用数据：第 4 节回退前后的 `/version` 分别为 `1.0.1 / 2918346e168cf7ece3be02d8b466a92cc4bf253a / build_no=3` 和 `1.0.0 / 3fdf50a724b1206ca62c8d602b7ceaa534f257a7 / build_no=1`，重新下载的 v1.0.0 归档哈希仍为 `fc05bdfecbfe374e4569eaa9df4618c0355ebb69a3497fbfe21795f2b3f2683e`。问题 3 的①与权限对照提供了同一源提交重建的比较；本次读取的 [v1.0.0 元数据](https://api.github.com/repos/aCannedFish/ops-lab1-8/releases/tags/v1.0.0)和 [v1.0.1 元数据](https://api.github.com/repos/aCannedFish/ops-lab1-8/releases/tags/v1.0.1)中，`immutable` 均为 `false`。
 
-若 v1.0.1 出现缺陷，应停止继续推广，先切回已经下载并校验的 v1.0.0，再修复问题并以新的版本号发布。同一版本号应持续指向同一提交和制品，删除 v1.0.1 的 tag 后复用该版本号会让已有下载、缓存、运行实例和审计记录对应不同内容，破坏追溯。任务 6 使用 `enroll-conflict_1.0.0_linux_amd64.tar.gz` 中原有的 `enroll-conflict` 文件回退，无需重新编译，两次 `/version` 中版本、提交和构建号从上述 v1.0.1 组合变为 v1.0.0 组合，说明运行对象确已切回。源码重建不能直接假定等于原附件，本组①虽得到相同二进制，归档仍因权限不同而变化，只有进一步控制原发布参数、工具链及权限等输入后，补充对照才复现原归档哈希。若附件和对应 `.sha256` 同时被替换，且新包的 `BUILD_INFO` 仍声称来自可达的主干提交，`trace.sh` 的内部校验及历史检查可能全部通过，它没有证明归档中的程序确由该提交构建。第 4 节独立保存的原哈希可发现新归档与发布时不同，但这一判断以记录本身可信且未一起遭到篡改为前提。[Immutable releases](https://docs.github.com/en/code-security/concepts/supply-chain-security/immutable-releases) 可锁定发布后的关联 tag 和附件并生成发布证明，用于防止这种替换，本组上述两个既有版本并未具备该不可变标记。回退可行性还以旧制品完整、可取得，并与目标架构、运行环境和当前数据兼容为条件，哈希一致只证明内容未变，不能单独证明业务正确或没有漏洞。
+若 v1.0.1 出现缺陷，应停止继续部署该版本，先切回已经下载并校验的 v1.0.0，再修复问题并以新的版本号发布。同一版本号应持续指向同一提交和制品，删除 v1.0.1 的 tag 后复用该版本号，会使已有下载、缓存、运行实例和审计记录中的同一版本号对应不同内容，难以准确追溯。任务 6 使用 `enroll-conflict_1.0.0_linux_amd64.tar.gz` 中原有的 `enroll-conflict` 文件回退，无需重新编译；两次 `/version` 输出中的版本、提交和构建号均从 v1.0.1 的对应值变为 v1.0.0 的对应值，表明服务已切回旧版本。从源码重新构建的结果可能与原附件不同：本组①得到的二进制相同，归档因权限不同而变化，进一步控制原发布参数、工具链及权限等输入后，才在补充对照中得到与原归档相同的哈希。若附件和对应的 `.sha256` 同时被替换，且新包的 `BUILD_INFO` 仍记录主干历史中的提交，`trace.sh` 的校验和检查及历史检查可能全部通过，因为脚本无法确认归档中的程序确实由该提交构建。第 4 节独立保存的原哈希可用于发现新归档与发布时的差异，前提是这份记录本身可信，且未同时遭到篡改。[Immutable releases](https://docs.github.com/en/code-security/concepts/supply-chain-security/immutable-releases) 可锁定发布后的关联 tag 和附件，并生成发布证明，以防止这种替换；本组上述两个版本的 `immutable` 均为 `false`。回退还要求旧制品完整、可取得，并与目标架构、运行环境和当前数据兼容；哈希一致只能证明内容未变，业务正确性和是否存在漏洞还需另行验证。
 
 ## 7. 选做记录
 
 | 选做 | 完成情况与证据 |
 |---|---|
-| O1 容器镜像 | 已实现，见 [PR #11](https://github.com/aCannedFish/ops-lab1-8/pull/11)；本地验证及发布后的取证步骤见下文。正式 GHCR digest 与匿名拉取结果待合入后发布验证。 |
-| O2 缓存对反馈时间的影响 | 已完成两组各 5 次运行，全部成功；[PR #11](https://github.com/aCannedFish/ops-lab1-8/pull/11) 默认缓存，[PR #12](https://github.com/aCannedFish/ops-lab1-8/pull/12) 为不合并的无缓存对照。预期、逐次数据、波动与局限见下文。 |
-| O3 迁移到小组项目 | 尚未迁移：未提供目标项目仓库，不能以本示例的流水线或迁移计划作为实际迁移证据。所需差异见下文。 |
+| O1 容器镜像 | 镜像工作流已通过 [PR #11](https://github.com/aCannedFish/ops-lab1-8/pull/11) 合入 main，本地验证已完成。合入后尚未发布新版本，GHCR digest 与匿名拉取结果仍待验证，步骤见下文。 |
+| O2 缓存对反馈时间的影响 | 已完成两组各 5 次运行，全部成功；[PR #11](https://github.com/aCannedFish/ops-lab1-8/pull/11) 使用默认缓存，[PR #12](https://github.com/aCannedFish/ops-lab1-8/pull/12) 用作无缓存对照，已关闭且未合并。预期、逐次数据、波动与局限见下文。 |
+| O3 迁移到小组项目 | 尚未迁移：本记录未提供目标项目仓库及迁移后的 PR、运行证据。迁移时需要核对的项目差异见下文。 |
 
 ### O1：Release 附件构建镜像
 
-[PR #11](https://github.com/aCannedFish/ops-lab1-8/pull/11) 新增同一 `release.yml` 内的 `image` job，`needs: release` 保证先生成附件。镜像 job 下载该 tag 的 `enroll-conflict_<版本>_linux_amd64.tar.gz` 和 `.sha256`，校验后解压，将解压目录作为 Docker 构建上下文。仓库的 `Dockerfile` 仅复制 `enroll-conflict` 和 `BUILD_INFO`，没有重新编译。镜像名称通过 `${GITHUB_REPOSITORY,,}` 转小写，发布至 `ghcr.io/acannedfish/ops-lab1-8:<tag>`，声明平台 `linux/amd64`；只有镜像 job 获得 `packages: write`。
+[PR #11](https://github.com/aCannedFish/ops-lab1-8/pull/11) 已在 `release.yml` 中新增 `image` job，通过 `needs: release` 等待发布 job 完成。镜像 job 下载该 tag 对应的 `enroll-conflict_<版本>_linux_amd64.tar.gz` 和 `.sha256`，校验后解压，将解压目录作为 Docker 构建上下文。仓库的 `Dockerfile` 直接复制 `enroll-conflict` 和 `BUILD_INFO`。工作流通过 `${GITHUB_REPOSITORY,,}` 将镜像名称转为小写，发布地址为 `ghcr.io/acannedfish/ops-lab1-8:<tag>`，平台为 `linux/amd64`；只有镜像 job 获得 `packages: write` 权限。
 
-本地已下载 v1.0.0 附件，`sha256sum -c` 返回 `OK`，Docker 构建并运行 `-version` 成功。运行容器的本地主机 `uname -m` 为 `x86_64`，Docker 服务端为 `linux/x86_64`，镜像平台为 `linux/amd64`，输出如下：
+本地已下载 v1.0.0 附件，`sha256sum -c` 返回 `OK`，随后成功构建 Docker 镜像，并运行容器查看 `-version` 输出。运行容器的本地主机 `uname -m` 为 `x86_64`，Docker 服务端为 `linux/x86_64`，镜像平台为 `linux/amd64`，版本输出如下：
 
 ```text
 enroll-conflict version=1.0.0 commit=3fdf50a724b1206ca62c8d602b7ceaa534f257a7 build_no=1 go=go1.26.9
 ```
 
-本地镜像摘要为 `sha256:460bffc7330ad7885a538b07e07d0c50c20f552c47a8d73534f76c899bf5adaf`，已用 `ops-lab1-o1@sha256:460bffc7330ad7885a538b07e07d0c50c20f552c47a8d73534f76c899bf5adaf` 而非 tag 运行容器，`/healthz` 返回 `ok`，`/version` 与上述版本一致。另从容器复制二进制，与解压后的附件执行 `cmp`，结果相同，二进制 SHA-256 为 `abe945029c49c5a9012ed371016d3dd21679892b8294b47d01140210ede49b0f`。
+本地镜像摘要为 `sha256:460bffc7330ad7885a538b07e07d0c50c20f552c47a8d73534f76c899bf5adaf`，已使用摘要引用 `ops-lab1-o1@sha256:460bffc7330ad7885a538b07e07d0c50c20f552c47a8d73534f76c899bf5adaf` 运行容器，`/healthz` 返回 `ok`，`/version` 与上述版本一致。另外，从容器中复制二进制文件，通过 `cmp` 与附件解压得到的二进制文件比较，结果相同，二进制 SHA-256 为 `abe945029c49c5a9012ed371016d3dd21679892b8294b47d01140210ede49b0f`。
 
-以上为本地验证，不是 GHCR 发布证明。`main` 的规则要求 PR 审批及 `ci` 通过；PR 合入后，需在 main 历史上的提交创建新的版本 tag。镜像 job 将在 Job Summary 中记录实际 GHCR digest、主机内核架构、Docker 服务端架构和镜像平台，并执行下列形式的命令，以摘要固定运行对象：
+截至 2026-10-15、PR #14 合入时，已完成上述本地验证，仓库的正式 Release 仍为 v1.0.0 和 v1.0.1，均早于 PR #11 合入。GHCR 发布验证还需在 main 历史中包含镜像工作流的提交上创建新的版本 tag；main 的规则要求改动经过 PR 审批并通过 `ci`。新版本发布时，镜像 job 会在 Job Summary 中记录实际 GHCR digest、主机内核架构、Docker 服务端架构和镜像平台，并使用以下命令按摘要运行镜像：
 
 ```bash
 docker run --rm --platform linux/amd64 \
   ghcr.io/acannedfish/ops-lab1-8@sha256:<本次推送的摘要> -version
 ```
 
-镜像中的二进制是 `linux/amd64`，不提供多架构构建。在 Apple 芯片等 arm64 主机上仍需 `--platform linux/amd64`，依赖 Docker 的模拟支持，运行速度可能降低。
+镜像中的二进制仅支持 `linux/amd64`。在 Apple 芯片等 arm64 主机上运行时，需要加上 `--platform linux/amd64`，并依赖 Docker 的模拟支持，运行速度可能降低。
 
-**为什么不拆成另一个 Release 事件工作流？** 发布步骤使用仓库内置 `GITHUB_TOKEN` 创建 Release。为防止自动化递归触发，使用该 token 产生的事件通常不会启动新工作流（`workflow_dispatch` 和 `repository_dispatch` 是例外），因此不能期待 `release: published` 工作流因此运行。将镜像 job 放在同一工作流并显式依赖发布 job，可以沿用当前运行的上下文及已生成的 Release 附件。参见 [Triggering a workflow](https://docs.github.com/en/actions/how-tos/writing-workflows/choosing-when-your-workflow-runs/triggering-a-workflow#triggering-a-workflow-from-a-workflow)。
+**为什么不拆成另一个 Release 事件工作流？** 发布步骤使用仓库内置的 `GITHUB_TOKEN` 创建 Release。为防止工作流之间循环触发，使用该 token 产生的事件通常不会启动新工作流（`workflow_dispatch` 和 `repository_dispatch` 是例外），因此这里创建 Release 后不会触发另一个监听 `release: published` 的工作流。将镜像 job 放在同一工作流中，并设置为依赖发布 job，即可使用本次运行的信息和已生成的 Release 附件。参见 [Triggering a workflow](https://docs.github.com/en/actions/how-tos/writing-workflows/choosing-when-your-workflow-runs/triggering-a-workflow#triggering-a-workflow-from-a-workflow)。
 
-**匿名拉取检查。** GHCR 新包默认私有，`org.opencontainers.image.source` 将包关联到仓库，但仓库公开不能代替匿名拉取验证。工作流使用临时空 Docker 配置执行 `docker pull --platform linux/amd64 <image>@<digest>`，将成功或失败写入 Summary，失败时保留日志并提示检查包可见性。需结合 [包设置](https://github.com/users/aCannedFish/packages/container/ops-lab1-8/settings)确认实际权限；发布前不能声称已可匿名拉取。参见 [Configuring package access](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility)。
+**匿名拉取检查。** GHCR 新包默认私有，`org.opencontainers.image.source` 用于将包关联到仓库，匿名拉取仍需实际验证。工作流使用临时空 Docker 配置执行 `docker pull --platform linux/amd64 <image>@<digest>`，将结果写入 Summary；拉取失败时保留日志，并提示检查包的可见性。后续发布时，需结合拉取结果和[包设置](https://github.com/users/aCannedFish/packages/container/ops-lab1-8/settings)确认实际访问权限。参见 [Configuring package access](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility)。
 
 ### O2：缓存实验
 
-**实验前预期（在创建无缓存 PR 和重跑之前记录）。** 本项目的 `go.mod` 没有第三方依赖，所以预计节省的依赖下载时间接近 0 秒；但 `setup-go` 同时缓存 Go 编译产物，标准库及项目代码在 `vet`、`test` 中仍会使用编译缓存。因此预计热缓存会缩短检查耗时，可能达到数十秒，净收益应扣除缓存下载、解压和保存的开销，不能预设“没有依赖就完全没有收益”。实验前查询仓库 Actions Cache，main 已有约 45 MB 缓存，键中 Go 版本为 `1.26.9`。将用相同的 `ubuntu-24.04`、Go `1.26.9` 和 Go 源码，以两个 PR 的 `ci` 作为比较，避免 main 的 push 额外打包与上传影响对照。
+**实验前预期（在创建无缓存 PR 和重跑之前记录）。** 本项目的 `go.mod` 没有第三方依赖，所以预计节省的依赖下载时间接近 0 秒。`setup-go` 同时缓存 Go 编译产物，执行 `vet`、`test` 时仍可使用标准库及项目代码的编译缓存。因此，预计命中已有缓存时检查耗时会缩短，可能节省数十秒，实际节省的时间还需扣除缓存下载、解压和保存的开销。实验前查询仓库 Actions Cache，main 已有约 45 MB 缓存，缓存键中的 Go 版本为 `1.26.9`。当时计划使用相同的 `ubuntu-24.04`、Go `1.26.9` 和 Go 源码，比较两个 PR 的 `ci` 时长，以排除 main 推送后额外打包和上传步骤的影响。
 
-**实验方法。** 预期先记录在本地文档，并在创建 [PR #12](https://github.com/aCannedFish/ops-lab1-8/pull/12) 时写入其初始说明（09:35:12 UTC，早于无缓存首次运行 09:35:16 UTC）；文档随后随 [提交 d7fb433](https://github.com/aCannedFish/ops-lab1-8/commit/d7fb4335ffc09cb5d1d459c1d5f15e17e859969b) 推送。对照 PR 相对 main 的唯一改动是增加 `cache: false`，该 PR 不合并。缓存开启组使用 [PR #11](https://github.com/aCannedFish/ops-lab1-8/pull/11) 的 `ci #26`，关闭组使用 `ci #27`；两者 Go 源码、测试、Makefile、Go 版本和 ci 检查步骤完全相同，参与实验的 #11 提交仅修改 tag 触发的 release 工作流。各保留首次运行，再通过 Re-run all jobs（`gh run rerun <run_id>`，未指定 `--failed` 或 job）重跑 4 次，尝试间没有修改提交。两组首轮依次启动，此后重跑时间大致交错并有并行，未控制分配到的物理主机。
+**实验方法。** 预期先记录在本地文档中，并在创建 [PR #12](https://github.com/aCannedFish/ops-lab1-8/pull/12) 时写入初始说明（09:35:12 UTC，早于无缓存组首次运行的 09:35:16 UTC）；文档随后通过[提交 d7fb433](https://github.com/aCannedFish/ops-lab1-8/commit/d7fb4335ffc09cb5d1d459c1d5f15e17e859969b) 推送。对照 PR 相对当时 main 的唯一改动是增加 `cache: false`，该 PR 现已关闭，未合并。缓存开启组使用 [PR #11](https://github.com/aCannedFish/ops-lab1-8/pull/11) 的 `ci #26`，关闭组使用 `ci #27`；两组的 Go 源码、测试、Makefile、Go 版本和 ci 检查步骤完全相同，PR #11 中用于实验的提交仅修改了 tag 触发的 release 工作流。每组均保留首次运行，再通过 Re-run all jobs（`gh run rerun <run_id>`，未指定 `--failed` 或 job）重跑 4 次，重跑期间没有修改提交。两组首次运行依次启动，随后大致交错重跑，部分运行时间重叠，未控制分配到的物理主机。
 
-**全部数据。** 日期均为 2026-10-15，时间为 UTC，来源为 GitHub Actions 的对应 attempt/job 链接及 API `run_started_at`、`updated_at`、job/step 的 `started_at` 和 `completed_at`。job 时长用于主要比较，不含排队；反馈时长为该次 `run_started_at` 到 `updated_at`，包含等待调度及工作流收尾。API 时间精度为秒，步骤显示 0 秒表示不足约 1 秒，不表示未执行。
+**全部数据。** 日期均为 2026-10-15，时间为 UTC。数据来自 GitHub Actions 对应的 attempt/job 页面，以及 API 中的 `run_started_at`、`updated_at` 和 job/step 的 `started_at`、`completed_at` 字段。主要比较 job 时长，该值不含排队时间；反馈时长取本次运行的 `updated_at - run_started_at`，包含调度等待及工作流收尾时间。API 时间精度为秒，表中 0 秒的步骤仍有执行，只是耗时不足约 1 秒。
 
 | 缓存 | 运行 / attempt（证据） | job 开始（UTC） | job 时长 | 反馈时长 | setup-go | vet | test | 工具链来源 / runner 镜像版本 |
 |---|---|---|---:|---:|---:|---:|---:|---|
@@ -262,17 +262,17 @@ docker run --rm --platform linux/amd64 \
 | 反馈平均时长 | 23.0 s | 34.4 s |
 | 反馈范围 | 18～30 s | 28～42 s |
 
-**观察与结论。** 默认缓存组的 5 次日志均出现 `Cache restored successfully`，恢复同一个约 43 MiB 的缓存键；无缓存组均为 `cache: false`，没有恢复该编译缓存。默认缓存组 job 平均少 12.8 秒，约为关闭组的 43.5%，反馈平均少 11.4 秒；这些是本次样本的描述统计。`vet` 与 `test` 的耗时缩短支持“标准库及项目编译缓存仍有收益”的预期；`make test` 使用 `go test -count=1`，没有跳过测试执行。`Found in cache @ /opt/hostedtoolcache/...` 指 runner 预装的 Go 工具链，即使 `cache: false` 也可能出现，与 Actions 恢复的 `GOCACHE` / `GOMODCACHE` 不同。所分配的 runner 有两个镜像版本，工具链下载使 setup-go 耗时明显增加；缓存下载、网络、共享主机 CPU/磁盘负载以及排队也会波动，甚至有缓存 #26/2 与无缓存 #27/2 的反馈时长都为 30 秒。因此本次数据支持保留默认缓存，但不能把平均差值视为每次运行的固定收益。
+**观察与结论。** 默认缓存组的 5 次日志均出现 `Cache restored successfully`，使用同一个缓存键恢复了约 43 MiB 的缓存；无缓存组均设置 `cache: false`，没有恢复该编译缓存。默认缓存组的 job 平均时长少 12.8 秒，减少量约占关闭组的 43.5%，反馈平均时长少 11.4 秒，以上均为本次样本的统计结果。`vet` 与 `test` 的耗时缩短，符合标准库及项目编译缓存能够节省时间的预期；`make test` 使用 `go test -count=1`，每次均执行测试。runner 预装的 Go 工具链独立于 Actions 恢复的 `GOCACHE` 和 `GOMODCACHE`，因此即使设置 `cache: false`，日志中仍可能出现 `Found in cache @ /opt/hostedtoolcache/...`。两组运行分配到了两个版本的 runner 镜像，需要下载工具链的运行中，setup-go 耗时明显增加。缓存下载、网络状况、共享主机的 CPU 和磁盘负载，以及排队时间也会影响耗时，例如缓存开启组 #26/2 与关闭组 #27/2 的反馈时长均为 30 秒。本次数据支持保留默认缓存，具体节省的时间会随运行条件变化。
 
-**局限。** 每组仅 5 次，集中于同一时间段，未随机化执行顺序，也没有锁定同一 runner 镜像、硬件或负载。默认缓存组测量的是现有热缓存，没有测首次未命中及上传成本，且跨源码版本可能只复用部分编译结果。无缓存组禁用的是 setup-go 的模块及编译缓存，不是清空 runner 的所有系统缓存或工具链。本项目没有第三方依赖、PR 不执行 package/upload，结论不能直接推广到大型依赖项目、main 的完整制品流水线或冷缓存；如需准确量化，应增加样本、跨时段重复并控制 runner 镜像等因素。
+**局限。** 每组仅运行 5 次，集中于同一时间段，执行顺序未随机化，runner 镜像、硬件和负载也未固定。默认缓存组测量的是命中已有缓存时的耗时，未测量首次缓存未命中和上传缓存的开销；源码版本变化时，可能只能复用部分编译结果。无缓存组仅关闭 setup-go 的模块和编译缓存，runner 的其他系统缓存及预装工具链仍然保留。本项目没有第三方依赖，PR 检查也不执行打包和上传步骤，因此结论适用于本次实验条件；对于依赖较多的项目、main 的完整制品流水线或首次未命中缓存的情况，还需增加样本、跨时段重复实验，并控制 runner 镜像等因素后再作判断。
 
 ### O3：迁移所需的项目差异
 
-当前代码载体仍是统一示例 `enroll-conflict`，本记录没有目标小组项目的仓库链接，也没有迁移后的 PR 或运行证据，故 O3 尚未完成。实际迁移需要先检查目标项目的构建入口、测试、依赖锁文件、运行时和部署形式，再修改对应仓库；不能仅复制本实验的文档就认定完成。
+当前仍使用统一示例 `enroll-conflict`，本记录尚无目标小组项目的仓库链接、迁移后的 PR 或运行证据，O3 尚未完成。实际迁移时，需要先检查目标项目的构建入口、测试、依赖锁文件、运行时和部署形式，再修改对应仓库并验证运行结果。
 
 | 项目差异 | 迁移时需要核对与调整 |
 |---|---|
-| 语言和依赖 | 以目标项目工具链及锁文件配置安装、缓存、格式检查、静态检查和测试，不直接沿用 Go 版本与 Makefile 目标。 |
+| 语言和依赖 | 根据目标项目的工具链和依赖锁文件，配置安装、缓存、格式检查、静态检查和测试步骤，并调整构建命令。 |
 | 测试环境 | 若使用数据库、外部服务或前端浏览器，需要可重复的测试环境和必要配置；必需检查名称须与实际 job 一致。 |
 | 分支保护 | 在目标仓库配置 PR、审批和必需状态检查；用实际失败及修复的 PR 验证 gate。 |
 | 发布制品 | 明确可部署制品、版本及提交追溯信息；保留 main 历史检查和附件校验，按目标项目更改包名及目录。 |
@@ -283,12 +283,12 @@ docker run --rm --platform linux/amd64 \
 
 每位成员一行，只填写 GitHub 用户名，无需填写姓名；行数应与小组人数一致。
 
-以下记录截至任务 4 第二轮 PR #6 合入，依据各 PR 的作者与实际审批记录填写。
+以下记录截至 2026-10-15、[PR #14](https://github.com/aCannedFish/ops-lab1-8/pull/14) 合入时，依据 GitHub 上各 PR 的作者、合并状态和 `APPROVED` 审批记录填写。[PR #12](https://github.com/aCannedFish/ops-lab1-8/pull/12) 为缓存实验的对照 PR，已关闭且未合并，未计入“发起并合入”的数量。
 
 | GitHub 用户名 | 发起并合入的 PR 编号 | 审批过的 PR 编号 |
 |---|---|---|
-| aCannedFish | [#2](https://github.com/aCannedFish/ops-lab1-8/pull/2) | [#3](https://github.com/aCannedFish/ops-lab1-8/pull/3) |
-| CharonRyui | [#1](https://github.com/aCannedFish/ops-lab1-8/pull/1) | [#2](https://github.com/aCannedFish/ops-lab1-8/pull/2) |
-| 1JI0O | [#3](https://github.com/aCannedFish/ops-lab1-8/pull/3)、[#4](https://github.com/aCannedFish/ops-lab1-8/pull/4) | [#6](https://github.com/aCannedFish/ops-lab1-8/pull/6) |
-| VigilLover | 暂无 | [#4](https://github.com/aCannedFish/ops-lab1-8/pull/4) |
-| Mikujoker | [#6](https://github.com/aCannedFish/ops-lab1-8/pull/6) | 暂无 |
+| aCannedFish | [#2](https://github.com/aCannedFish/ops-lab1-8/pull/2)、[#8](https://github.com/aCannedFish/ops-lab1-8/pull/8)、[#9](https://github.com/aCannedFish/ops-lab1-8/pull/9)、[#14](https://github.com/aCannedFish/ops-lab1-8/pull/14) | [#3](https://github.com/aCannedFish/ops-lab1-8/pull/3)、[#5](https://github.com/aCannedFish/ops-lab1-8/pull/5)、[#7](https://github.com/aCannedFish/ops-lab1-8/pull/7)、[#10](https://github.com/aCannedFish/ops-lab1-8/pull/10)、[#13](https://github.com/aCannedFish/ops-lab1-8/pull/13) |
+| CharonRyui | [#1](https://github.com/aCannedFish/ops-lab1-8/pull/1)、[#11](https://github.com/aCannedFish/ops-lab1-8/pull/11) | [#2](https://github.com/aCannedFish/ops-lab1-8/pull/2) |
+| 1JI0O | [#3](https://github.com/aCannedFish/ops-lab1-8/pull/3)、[#4](https://github.com/aCannedFish/ops-lab1-8/pull/4)、[#5](https://github.com/aCannedFish/ops-lab1-8/pull/5) | [#6](https://github.com/aCannedFish/ops-lab1-8/pull/6)、[#9](https://github.com/aCannedFish/ops-lab1-8/pull/9)、[#11](https://github.com/aCannedFish/ops-lab1-8/pull/11)、[#14](https://github.com/aCannedFish/ops-lab1-8/pull/14) |
+| VigilLover | [#10](https://github.com/aCannedFish/ops-lab1-8/pull/10)、[#13](https://github.com/aCannedFish/ops-lab1-8/pull/13) | [#4](https://github.com/aCannedFish/ops-lab1-8/pull/4) |
+| Mikujoker | [#6](https://github.com/aCannedFish/ops-lab1-8/pull/6)、[#7](https://github.com/aCannedFish/ops-lab1-8/pull/7) | [#8](https://github.com/aCannedFish/ops-lab1-8/pull/8) |
