@@ -37,7 +37,7 @@
 | 第二轮：合入 main 后的运行（含制品） | [PR #6](https://github.com/aCannedFish/ops-lab1-8/pull/6) 经 1JI0O 审批后 squash 合入，主干提交为 9364840e2faec689ef86d47b489809f37724e90e，main 上只新增了这一条测试用例。[ci #16](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38688536767) 全部通过，产出 [artifact enroll-conflict-9364840e2faec689ef86d47b489809f37724e90e-16](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38688536767/artifacts/11951360180)，包含 tar.gz 与对应 .sha256。 |
 | 未合入分支上的 tag 被 release gate 拒绝的运行 | [release #2](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38709690916)：在临时分支 `scratch/gate-test` 的未合入提交 `301b6eb26b55dd1a90dfb5244fe6432c621f9bf1` 上创建测试 tag `v0.0.1`。[Release gate 步骤](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38709690916/job/116337716093)输出 `Tag commit 301b6eb26b55dd1a90dfb5244fe6432c621f9bf1 is not in origin/main history.`，以退出码 1 失败；工具链安装、检查、打包和创建 Release 均跳过，未生成测试 Release。测试 tag 和临时分支已从远程及本地删除。 |
 | Release v1.0.0 | [v1.0.0](https://github.com/aCannedFish/ops-lab1-8/releases/tag/v1.0.0)：在 [PR #8](https://github.com/aCannedFish/ops-lab1-8/pull/8) 合入 main 的提交 `3fdf50a724b1206ca62c8d602b7ceaa534f257a7` 上创建 tag，[release #1](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38709389752) 全部通过。已下载 `enroll-conflict_1.0.0_linux_amd64.tar.gz` 和对应 `.sha256`，执行 `sha256sum -c` 得到 `enroll-conflict_1.0.0_linux_amd64.tar.gz: OK`；包内 `BUILD_INFO` 的版本、提交和 `run_id=38709389752` 与本次发布一致。 |
-| Release v1.0.1 | <链接> |
+| Release v1.0.1 | [v1.0.1](https://github.com/aCannedFish/ops-lab1-8/releases/tag/v1.0.1)：在 [PR #10](https://github.com/aCannedFish/ops-lab1-8/pull/10) 合入 main 的提交 `2918346e168cf7ece3be02d8b466a92cc4bf253a` 上创建 tag，[release #3](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38713497689) 全部通过。已下载 `enroll-conflict_1.0.1_linux_amd64.tar.gz` 和对应 `.sha256`，使用 Python hashlib 计算并核对 SHA-256 一致（`8e9207e59d3585f128e4680e71bf93916c32acf9654de83d2cda1b77854318b0`）；包内 `BUILD_INFO` 的 `version=1.0.1`、`build_no=3`、提交号和 `run_id=38713497689` 与本次发布一致。 |
 
 ## 4. 追溯与运行
 
@@ -45,34 +45,69 @@
 
 | 项 | v1.0.0 | v1.0.1 |
 |---|---|---|
-| 版本号 | <填写> | <填写> |
-| 构建号 | <填写> | <填写> |
-| 提交号（SHA） | <填写> | <填写> |
-| 引入该提交的 PR | <编号与链接> | <编号与链接> |
-| 构建它的 Actions 运行（`trace.sh` 给出的链接） | <链接> | <链接> |
-| 制品 sha256（发布当时，取自 Release 里的 .sha256） | `fc05bdfecbfe374e4569eaa9df4618c0355ebb69a3497fbfe21795f2b3f2683e` | <填写> |
+| 版本号 | 1.0.0 | 1.0.1 |
+| 构建号 | 1 | 3 |
+| 提交号（SHA） | 3fdf50a724b1206ca62c8d602b7ceaa534f257a7 | 2918346e168cf7ece3be02d8b466a92cc4bf253a |
+| 引入该提交的 PR | https://github.com/aCannedFish/ops-lab1-8/commit/3fdf50a724b1206ca62c8d602b7ceaa534f257a7 | https://github.com/aCannedFish/ops-lab1-8/commit/2918346e168cf7ece3be02d8b466a92cc4bf253a |
+| 构建它的 Actions 运行（`trace.sh` 给出的链接） | https://github.com/aCannedFish/ops-lab1-8/actions/runs/38709389752 | https://github.com/aCannedFish/ops-lab1-8/actions/runs/38713497689 |
+| 制品 sha256（发布当时，取自 Release 里的 .sha256） | `fc05bdfecbfe374e4569eaa9df4618c0355ebb69a3497fbfe21795f2b3f2683e` | `8e9207e59d3585f128e4680e71bf93916c32acf9654de83d2cda1b77854318b0` |
 
-仅凭构建号能否唯一确定是哪次运行？v1.0.0 的构建号在 `ci` 和 `release` 的运行列表中各对应哪次运行？<填写>
+仅凭构建号能否唯一确定是哪次运行？v1.0.0 的构建号在 `ci` 和 `release` 的运行列表中各对应哪次运行？不能。`build_no` 取自 `github.run_number`，各工作流独立计数。v1.0.0 的构建号为 `1`，在 `ci` 列表中对应 [ci #1](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38352773742)（PR 触发），在 `release` 列表中对应 [release #1](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38709389752)（tag 推送触发）。实际构建 v1.0.0 制品的是后者，可由 `BUILD_INFO` 中的 `run_id=38709389752` 唯一定位该次运行；同号的 ci 运行并非该制品的构建来源。
 
-发布 v1.0.1 之后重新下载 v1.0.0 的附件，计算得到的 sha256：<填写>。与上表中发布当时的值是否一致？<填写>
+发布 v1.0.1 之后重新下载 v1.0.0 的附件，计算得到的 sha256：`fc05bdfecbfe374e4569eaa9df4618c0355ebb69a3497fbfe21795f2b3f2683e`。与上表中发布当时的值是否一致？一致。本次重新下载附件后使用 Python hashlib 计算 SHA-256，同时核对对应 `.sha256` 文件及上表中发布当时记录的值，三者相同，说明本次复核时 v1.0.0 附件内容与原记录一致。
 
 `trace.sh` 输出（v1.0.0）：
 
 ```text
-<粘贴>
+== 1. 校验和
+enroll-conflict_1.0.0_linux_amd64.tar.gz: OK
+== 2. 制品里的 BUILD_INFO
+name=enroll-conflict
+version=1.0.0
+build_no=1
+run_id=38709389752
+commit=3fdf50a724b1206ca62c8d602b7ceaa534f257a7
+go=go1.26.9
+== 3. 提交 3fdf50a724b1206ca62c8d602b7ceaa534f257a7
+作者: Guanting Yu <yuguanting@sjtu.edu.cn>
+时间: 2026-10-15T16:54:47+08:00
+标题: feat: add tag-triggered release workflow (#8)
+主干: 该提交在 origin/main 的历史上
+指向它的 tag: v1.0.0
+版本号: 1.0.0    构建号: 1
+提交页面（含关联的 PR）: https://github.com/aCannedFish/ops-lab1-8/commit/3fdf50a724b1206ca62c8d602b7ceaa534f257a7
+构建它的运行: https://github.com/aCannedFish/ops-lab1-8/actions/runs/38709389752
 ```
 
 `trace.sh` 输出（v1.0.1）：
 
 ```text
-<粘贴>
+== 1. 校验和
+enroll-conflict_1.0.1_linux_amd64.tar.gz: OK
+== 2. 制品里的 BUILD_INFO
+name=enroll-conflict
+version=1.0.1
+build_no=3
+run_id=38713497689
+commit=2918346e168cf7ece3be02d8b466a92cc4bf253a
+go=go1.26.9
+== 3. 提交 2918346e168cf7ece3be02d8b466a92cc4bf253a
+作者: wolf_lumine <hateful_mouse@outlook.com>
+时间: 2026-10-15T17:26:53+08:00
+标题: test: 增加同一单节次教学班冲突用例 (#10)
+主干: 该提交在 origin/main 的历史上
+指向它的 tag: v1.0.1
+版本号: 1.0.1    构建号: 3
+提交页面（含关联的 PR）: https://github.com/aCannedFish/ops-lab1-8/commit/2918346e168cf7ece3be02d8b466a92cc4bf253a
+构建它的运行: https://github.com/aCannedFish/ops-lab1-8/actions/runs/38713497689
 ```
 
 任务 6 第 4 步，两次 `/version` 的输出：
 
 ```text
-<运行 v1.0.1 时>
-<换回 v1.0.0 后>
+{"version":"1.0.1","commit":"2918346e168cf7ece3be02d8b466a92cc4bf253a","build_no":"3","go":"go1.26.9"}
+
+{"version":"1.0.0","commit":"3fdf50a724b1206ca62c8d602b7ceaa534f257a7","build_no":"1","go":"go1.26.9"}
 ```
 
 ## 5. 数据
