@@ -35,8 +35,8 @@
 | 第二轮：补测试后失败的运行 | [ci #14](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38600929615)：追加用例提交 7e55b98，新增的单节次合法用例在 TestValid 中失败；格式与 vet 通过。 |
 | 第二轮：撤销缺陷后通过的运行 | [ci #15](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38601111763)：提交 279f221 恢复 `s.End < s.Start`，保留新增用例，全部通过。 |
 | 第二轮：合入 main 后的运行（含制品） | [PR #6](https://github.com/aCannedFish/ops-lab1-8/pull/6) 经 1JI0O 审批后 squash 合入，主干提交为 9364840e2faec689ef86d47b489809f37724e90e，main 上只新增了这一条测试用例。[ci #16](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38688536767) 全部通过，产出 [artifact enroll-conflict-9364840e2faec689ef86d47b489809f37724e90e-16](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38688536767/artifacts/11951360180)，包含 tar.gz 与对应 .sha256。 |
-| 未合入分支上的 tag 被 release gate 拒绝的运行 | 待发布工作流合入 main 后，在未合入的临时提交上创建 `v0.0.1`，验证 release gate 拒绝发布并补录运行链接；验证后删除测试 tag 和临时分支。 |
-| Release v1.0.0 | 待本分支经 PR 合入 main 后，在包含发布工作流的主干提交上创建 `v1.0.0`；发布成功并下载、校验附件后补录链接。 |
+| 未合入分支上的 tag 被 release gate 拒绝的运行 | [release #2](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38709690916)：在临时分支 `scratch/gate-test` 的未合入提交 `301b6eb26b55dd1a90dfb5244fe6432c621f9bf1` 上创建测试 tag `v0.0.1`。[Release gate 步骤](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38709690916/job/116337716093)输出 `Tag commit 301b6eb26b55dd1a90dfb5244fe6432c621f9bf1 is not in origin/main history.`，以退出码 1 失败；工具链安装、检查、打包和创建 Release 均跳过，未生成测试 Release。测试 tag 和临时分支已从远程及本地删除。 |
+| Release v1.0.0 | [v1.0.0](https://github.com/aCannedFish/ops-lab1-8/releases/tag/v1.0.0)：在 [PR #8](https://github.com/aCannedFish/ops-lab1-8/pull/8) 合入 main 的提交 `3fdf50a724b1206ca62c8d602b7ceaa534f257a7` 上创建 tag，[release #1](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38709389752) 全部通过。已下载 `enroll-conflict_1.0.0_linux_amd64.tar.gz` 和对应 `.sha256`，执行 `sha256sum -c` 得到 `enroll-conflict_1.0.0_linux_amd64.tar.gz: OK`；包内 `BUILD_INFO` 的版本、提交和 `run_id=38709389752` 与本次发布一致。 |
 | Release v1.0.1 | <链接> |
 
 ## 4. 追溯与运行
@@ -50,7 +50,7 @@
 | 提交号（SHA） | <填写> | <填写> |
 | 引入该提交的 PR | <编号与链接> | <编号与链接> |
 | 构建它的 Actions 运行（`trace.sh` 给出的链接） | <链接> | <链接> |
-| 制品 sha256（发布当时，取自 Release 里的 .sha256） | 待 `v1.0.0` 发布后，从 Release 的 `.sha256` 附件读取，并校验下载的 `.tar.gz` 后填写。 | <填写> |
+| 制品 sha256（发布当时，取自 Release 里的 .sha256） | `fc05bdfecbfe374e4569eaa9df4618c0355ebb69a3497fbfe21795f2b3f2683e` | <填写> |
 
 仅凭构建号能否唯一确定是哪次运行？v1.0.0 的构建号在 `ci` 和 `release` 的运行列表中各对应哪次运行？<填写>
 
