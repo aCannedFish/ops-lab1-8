@@ -59,3 +59,86 @@ jobs:
         run: |
           gh release create "$TAG" dist/*.tar.gz dist/*.tar.gz.sha256 \
             --verify-tag --title "$TAG" --notes-from-tag
+
+  image:
+    needs: release
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Download and verify release package
+        id: package
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="${TAG#v}"
+          archive="enroll-conflict_${version}_linux_amd64.tar.gz"
+          download="$RUNNER_TEMP/release-package"
+          mkdir -p "$download"
+          gh release download "$TAG" --dir "$download" \
+            --pattern "$archive" --pattern "$archive.sha256"
+          (cd "$download" && sha256sum -c "$archive.sha256")
+          tar -xzf "$download/$archive" -C "$download"
+          echo "context=$download/enroll-conflict_${version}_linux_amd64" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "image=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      # Dockerfile 只复制附件中的二进制及 BUILD_INFO，不安装 Go 或重新编译。
+      - name: Build and push image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ steps.package.outputs.context }}
+          file: ./Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.package.outputs.image }}:${{ github.ref_name }}
+          build-args: |
+            VERSION=${{ steps.package.outputs.version }}
+            COMMIT=${{ github.sha }}
+            SOURCE=${{ github.server_url }}/${{ github.repository }}
+
+      - name: Run image by digest and record architecture
+        env:
+          IMAGE: ${{ steps.package.outputs.image }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          reference="$IMAGE@$DIGEST"
+          docker pull --platform linux/amd64 "$reference"
+          docker run --rm --platform linux/amd64 "$reference" -version | tee "$RUNNER_TEMP/image-version.txt"
+          {
+            echo '### O1 容器镜像'
+            printf '\n- 镜像：`%s`\n' "$reference"
+            printf -- '- 主机内核架构：`%s`\n' "$(uname -m)"
+            printf -- '- Docker 服务端：`%s`\n' "$(docker info --format '{{.OSType}}/{{.Architecture}}')"
+            printf -- '- 镜像平台：`%s`\n' "$(docker image inspect --format '{{.Os}}/{{.Architecture}}' "$reference")"
+            printf '\n按 digest 运行的版本输出：\n\n```text\n'
+            cat "$RUNNER_TEMP/image-version.txt"
+            printf '```\n'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Check anonymous pull
+        env:
+          IMAGE: ${{ steps.package.outputs.image }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          anonymous_config="$(mktemp -d)"
+          trap 'rm -rf "$anonymous_config"' EXIT
+          if docker --config "$anonymous_config" pull --platform linux/amd64 "$IMAGE@$DIGEST"; then
+            echo '- 匿名拉取：成功（使用空 Docker 配置，无登录凭据）。' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo '- 匿名拉取：失败，需检查 GHCR 包可见性及上述拉取日志。' >> "$GITHUB_STEP_SUMMARY"
+            echo '::warning::Anonymous pull failed; check package visibility and pull logs.'
+          fi
