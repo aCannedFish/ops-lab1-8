@@ -30,10 +30,11 @@
 | 第一轮：失败的 PR 运行 | [PR #4](https://github.com/aCannedFish/ops-lab1-8/pull/4) 的 [ci #8](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38568957560)：格式、vet 通过，TestConflicts/单周对双周不冲突 与 TestConflictEndpoint 失败；当时必需检查 ci 为 FAILURE，PR 的 mergeStateStatus 为 BLOCKED，同时尚缺成员审批。 |
 | 第一轮：修复后通过的 PR 运行 | [ci #9](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38569113229)：追加修复提交 3cfa07fc4239769d5a96ba9c1dde77578aec6623，恢复 weeksOverlap 的周次判断；格式、vet、测试全部通过，保留新增的双周重叠测试。 |
 | 第一轮：合入 main 后的运行（含制品） | [PR #4](https://github.com/aCannedFish/ops-lab1-8/pull/4) 经 VigilLover 审批后 squash 合入，主干提交为 162fef9f00ef878e1f31409c8d78c81b040d748d。[ci #10](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38570502600) 全部通过，产出 [artifact enroll-conflict-162fef9f00ef878e1f31409c8d78c81b040d748d-10](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38570502600/artifacts/11897147070)，包含 tar.gz 与对应 .sha256。 |
-| 第二轮：找到的缺陷，以及现有测试为何无法发现它 | <一两句话> |
-| 第二轮：仅含缺陷时仍然通过的运行 | <链接> |
-| 第二轮：补测试后失败的运行 | <链接> |
-| 第二轮：撤销缺陷后通过的运行 | <链接> |
+| 第二轮：找到的缺陷，以及现有测试为何无法发现它 | `Section.Valid` 的范围判断被改成 `s.End <= s.Start`，把 start 与 end 相同的单节次时段判为非法；现有 `TestValid` 的合法用例只有 `{Weekday: 3, Start: 1, End: 2}`，非法用例覆盖的是 start > end，两者都不含 start == end 这条边界，因此该改动不会让 `make test` 失败。 |
+| 第二轮：仅含缺陷时仍然通过的运行 | [PR #6](https://github.com/aCannedFish/ops-lab1-8/pull/6) 的 [ci #13](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38600811332)：分支上只有缺陷提交 340d8bd，格式、vet、测试全部通过，gate 没有拦住它。 |
+| 第二轮：补测试后失败的运行 | [ci #14](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38600929615)：追加用例提交 7e55b98，新增的单节次合法用例在 TestValid 中失败；格式与 vet 通过。 |
+| 第二轮：撤销缺陷后通过的运行 | [ci #15](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38601111763)：提交 279f221 恢复 `s.End < s.Start`，保留新增用例，全部通过。 |
+| 第二轮：合入 main 后的运行（含制品） | [PR #6](https://github.com/aCannedFish/ops-lab1-8/pull/6) 经 1JI0O 审批后 squash 合入，主干提交为 9364840e2faec689ef86d47b489809f37724e90e，main 上只新增了这一条测试用例。[ci #16](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38688536767) 全部通过，产出 [artifact enroll-conflict-9364840e2faec689ef86d47b489809f37724e90e-16](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38688536767/artifacts/11951360180)，包含 tar.gz 与对应 .sha256。 |
 | 未合入分支上的 tag 被 release gate 拒绝的运行 | <链接> |
 | Release v1.0.0 | <链接> |
 | Release v1.0.1 | <链接> |
@@ -145,11 +146,12 @@
 
 每位成员一行，只填写 GitHub 用户名，无需填写姓名；行数应与小组人数一致。
 
-以下记录截至第一轮演练 PR #4 合入，依据各 PR 的作者与实际审批记录填写。
+以下记录截至任务 4 第二轮 PR #6 合入，依据各 PR 的作者与实际审批记录填写。
 
 | GitHub 用户名 | 发起并合入的 PR 编号 | 审批过的 PR 编号 |
 |---|---|---|
 | aCannedFish | [#2](https://github.com/aCannedFish/ops-lab1-8/pull/2) | [#3](https://github.com/aCannedFish/ops-lab1-8/pull/3) |
 | CharonRyui | [#1](https://github.com/aCannedFish/ops-lab1-8/pull/1) | [#2](https://github.com/aCannedFish/ops-lab1-8/pull/2) |
-| 1JI0O | [#3](https://github.com/aCannedFish/ops-lab1-8/pull/3)、[#4](https://github.com/aCannedFish/ops-lab1-8/pull/4) | 暂无 |
+| 1JI0O | [#3](https://github.com/aCannedFish/ops-lab1-8/pull/3)、[#4](https://github.com/aCannedFish/ops-lab1-8/pull/4) | [#6](https://github.com/aCannedFish/ops-lab1-8/pull/6) |
 | VigilLover | 暂无 | [#4](https://github.com/aCannedFish/ops-lab1-8/pull/4) |
+| Mikujoker | [#6](https://github.com/aCannedFish/ops-lab1-8/pull/6) | 暂无 |
