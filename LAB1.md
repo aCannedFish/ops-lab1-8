@@ -126,17 +126,29 @@ go=go1.26.9
 
 提交到发布的间隔，至少记录三个合入的 PR：
 
+以下时间均为北京时间（UTC+8）。第一个提交取该 PR 提交列表首项的 `commit.committer.date`，合入时间取 `merged_at`，发布时间取 Release 的 `published_at`；对应 Release 选择其历史首次包含该 PR 的 squash 提交的正式版本。PR #8 的首个提交经过 cherry-pick，作者时间为 16:01:12，提交者时间为 16:45:07，本表统一使用后者计算。
+
 | PR | 第一个提交的时间 | 合入时间 | 对应 Release 的发布时间 | 提交到发布的间隔 |
 |---|---|---|---|---|
-| #<编号> | <填写> | <填写> | <填写> | <填写> |
-| #<编号> | <填写> | <填写> | <填写> | <填写> |
-| #<编号> | <填写> | <填写> | <填写> | <填写> |
+| [#4](https://github.com/aCannedFish/ops-lab1-8/pull/4) | [2026-10-14 21:05:19](https://github.com/aCannedFish/ops-lab1-8/commit/42c17fd47f984a5372d8f53cf57c43ceb73d7797) | 2026-10-14 21:17:02 | [v1.0.0](https://github.com/aCannedFish/ops-lab1-8/releases/tag/v1.0.0)，2026-10-15 16:57:49 | 19 小时 52 分 30 秒（71550 s） |
+| [#8](https://github.com/aCannedFish/ops-lab1-8/pull/8) | [2026-10-15 16:45:07](https://github.com/aCannedFish/ops-lab1-8/commit/e5426d4354b0ee05d9afea8c5de779830935305f) | 2026-10-15 16:54:48 | [v1.0.0](https://github.com/aCannedFish/ops-lab1-8/releases/tag/v1.0.0)，2026-10-15 16:57:49 | 12 分 42 秒（762 s） |
+| [#10](https://github.com/aCannedFish/ops-lab1-8/pull/10) | [2026-10-15 17:17:56](https://github.com/aCannedFish/ops-lab1-8/commit/9ac36d7d6d6e27f9b232cce8b9f61b6334f2162d) | 2026-10-15 17:26:54 | [v1.0.1](https://github.com/aCannedFish/ops-lab1-8/releases/tag/v1.0.1)，2026-10-15 17:31:17 | 13 分 21 秒（801 s） |
 
 `ci` 工作流的运行时长（从 Actions 页面读取），至少 5 次，全部列出，不要只给出平均值：
 
+以下为两轮 gate 演练的 7 次运行，均为 attempt 1，采用默认缓存。工作流时长按 GitHub 对应运行的 `updated_at - run_started_at` 计算，包含调度等待和收尾；备注另列 Actions job 页中唯一 `ci` job 的执行时长。第一张时间线使用 job 结束时刻，两种口径的收尾时间可能相差约 1 秒。
+
 | 运行 | 事件（PR / push） | 时长 | 备注 |
 |---|---|---|---|
-| #<编号> | <填写> | <填写> | <填写> |
+| [ci #8](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38568957560/attempts/1) | PR #4 | 20 s | 第一轮缺陷被已有测试发现；[job](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38568957560/job/115868783325) 执行 15 s，失败。 |
+| [ci #9](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38569113229/attempts/1) | PR #4 | 19 s | 修复后通过；[job](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38569113229/job/115869315003) 执行 14 s。 |
+| [ci #10](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38570502600/attempts/1) | push main | 20 s | 第一轮合入后通过，含打包及上传；[job](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38570502600/job/115874122671) 执行 16 s。 |
+| [ci #13](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38600811332/attempts/1) | PR #6 | 21 s | 仅有边界缺陷时仍然通过；[job](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38600811332/job/115979273271) 执行 16 s。 |
+| [ci #14](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38600929615/attempts/1) | PR #6 | 16 s | 补充测试后失败；[job](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38600929615/job/115979681400) 执行 12 s。 |
+| [ci #15](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38601111763/attempts/1) | PR #6 | 23 s | 撤销缺陷、保留测试后通过；[job](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38601111763/job/115980301302) 执行 18 s。 |
+| [ci #16](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38688536767/attempts/1) | push main | 14 s | 第二轮合入后通过，含打包及上传；[job](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38688536767/job/116268858971) 执行 10 s。 |
+
+上述工作流时长合计 133 s，均值 19 s，中位数 20 s，范围为 14～23 s。这是本次两轮演练的描述统计，PR 检查与 main 上包含打包、上传的运行已在表中分别标明。
 
 ## 6. 分析问题
 
@@ -144,30 +156,49 @@ go=go1.26.9
 
 **问题 1：gate 的收益与成本。** 两轮演练中，gate 拦住了什么，没有拦住什么？用第 5 节的时间线计算：第一轮因失败多花了多少时间，其中等待 `ci` 的时间和人工修改的时间各占多少？一次 `ci` 大约需要多久，在“提交到发布的间隔”中占多大比例？第二轮补充测试之后，还有哪类问题是测试本身无法发现的？
 
-<填写>
+所用数据：第 3 节两轮演练的运行结果、第 5 节第一轮时间线和 7 次 CI 时长，以及 PR #4、#8、#10 的提交到发布间隔。第一轮从发起 PR 到检查通过为 `21:07:09 - 21:05:38 = 91 s`，两个检查反馈窗口各为 23 s，失败结束到修复推送的窗口为 45 s。
+
+自动 gate 拦住了第一轮已有测试覆盖的周次回归，也在第二轮补充测试后拦住了单节次边界缺陷，但第二轮只有缺陷时的 ci #13 仍然通过，说明门禁能力受测试覆盖限制。第一轮 91 s 中，等待检查反馈共 46 s，约占 50.5%，人工处理窗口为 45 s，约占 49.5%，其中反馈窗口包含事件触发和调度等待。若假设没有失败时也只需一次 23 s 的成功反馈，则失败增加的时间为 `91 - 23 = 68 s`，分解为失败检查反馈 23 s 和人工处理 45 s，分别占增量的约 33.8% 和 66.2%，人工窗口还包含发现失败、提交和推送等操作，不能当作纯编码工时。7 次工作流平均约 19 s，以单次均值除以 PR #4、#8、#10 的提交到发布间隔，分别约为 0.027%、2.49%、2.37%，这些比值没有累加一次交付中的全部 CI 与 release 运行。第一轮检查通过到合入还间隔 593 s，本组没有进一步分离其中的审批等待、人员响应和排期，因此不能把整个交付间隔都归因于 CI。补充边界测试后，错误的需求理解、未建模的业务规则、缺少负载或安全用例时的性能与安全问题，以及生产配置和外部依赖差异，仍可能未被这套测试发现。以上时间结论依赖本次固定工具链、默认缓存和共享 runner 条件，只有 7 次运行及 3 个 PR 的样本，不能直接推广为团队长期的交付效率或 gate 的因果收益。
 
 **问题 2：PR 中的构建与 main 上的构建。** 在 PR 触发的运行日志中，`github.sha` 与 `pull_request.head.sha` 是否相同？它们能否在 main 的历史中找到？答案与合并方式有关，请写明本组使用的方式。合并之后，main 上这次改动的提交号是哪个？据此说明，为什么待发布的制品只能从 main 上的提交或 tag 构建。
 
-<填写>
+所用数据：[PR #4 修复后的 ci #9](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38569113229/job/115869315003) 的事件日志如下；第 3 节记录了 squash 后的主干提交。以本次同步的 `main` 提交 `a7b9e4a133fdf94e681a78d33aadeea1d2ef8368` 为截止点，用 `git rev-list origin/main` 核对可达历史，下面两个 SHA 均不在主干历史中，合入后的 `162fef9f00ef878e1f31409c8d78c81b040d748d` 在其中。
+
+```text
+github.event_name=pull_request
+github.ref=refs/pull/4/merge
+github.sha=5ca54507e620208172ed476797eec67d37e54234
+github.event.pull_request.head.sha=3cfa07fc4239769d5a96ba9c1dde77578aec6623
+```
+
+本组使用 squash，日志中的两个 SHA 不同。`github.sha` 是 GitHub 为 PR 生成的临时合并测试提交，包含当时主干与分支的合并结果，`pull_request.head.sha` 是修复后分支自身的提交，含义与 [GitHub 的 PR 事件说明](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request)一致。squash 合入后，本次改动在 main 上对应[提交 `162fef9`](https://github.com/aCannedFish/ops-lab1-8/commit/162fef9f00ef878e1f31409c8d78c81b040d748d)，临时合并提交和分支原提交均未成为该主干历史的祖先，原分支的提交仍可由 PR 页面追查。临时合并测试提交也可能随主干或分支更新而变化，其 SHA 不能直接代表最终获准合入的主干版本。因此发布应从 main 历史上的提交，或指向这些提交的 tag 构建，并把最终提交号和实际构建运行写入制品，使发布对象可以关联到已合入的 PR。若采用保留分支历史的 merge commit 合并，分支 head 可能成为 main 的祖先，因此“两个原 SHA 均不在历史中”是本组 squash 与本次历史核对的结论，不能套用于所有合并方式。
 
 **问题 3：可重复构建。** 在本地同一个提交上按下表构建，记录哈希值。④、⑤ 需临时去掉 Makefile 中 tar 的 `--mtime=@0`，完成后用 `git checkout -- Makefile` 恢复，不要提交。
 
+所用数据：在 Linux 主机 `ecs-249f` 的独立临时克隆中，固定源提交为 v1.0.0 的 `3fdf50a724b1206ca62c8d602b7ceaa534f257a7`，工具链为 Go `1.26.9`、GNU tar `1.35`、gzip `1.12`，目标为 `linux/amd64`，`CGO_ENABLED=0`，使用 Makefile 的 `-trimpath`。①②④⑤沿用原发布参数做受控复现：`VERSION=1.0.0 BUILD_NO=1 RUN_ID=38709389752 COMMIT=3fdf50a724b1206ca62c8d602b7ceaa534f257a7`；③仅将 `BUILD_NO` 改为 `2`。五次构建均使用该主机的 `umask 0002`，并设置 `GOMAXPROCS=1`、`GOFLAGS=-p=1`、`GOMEMLIMIT=256MiB`；④⑤之间等待 3 秒，结束后已执行 `git checkout -- Makefile`，工作区恢复干净。
+
 | 构建 | 条件 | 二进制 sha256 | tar.gz sha256 |
 |---|---|---|---|
-| ① | `make package`，`VERSION`、`BUILD_NO`、`RUN_ID`、`COMMIT` 均指定固定值 | <填写> | <填写> |
-| ② | 与 ① 完全相同，再构建一次 | <填写> | <填写> |
-| ③ | 仅将 `BUILD_NO` 换成另一个值 | <填写> | <填写> |
-| ④ | 去掉 `--mtime=@0`，其余同 ① | <填写> | <填写> |
-| ⑤ | 同 ④，间隔几秒后再构建一次 | <填写> | <填写> |
-| Actions | 对 main 上的一次 push 运行执行 Re-run all jobs，比较两次尝试中 package 步骤打印的值 | <两次的值> | <两次的值> |
+| ① | `make package`，`VERSION`、`BUILD_NO`、`RUN_ID`、`COMMIT` 均指定固定值 | `abe945029c49c5a9012ed371016d3dd21679892b8294b47d01140210ede49b0f` | `bd2e33b2757451c97eac5f9ceec08516e1f019f6d1347a9d6818d9083a32e40c` |
+| ② | 与 ① 完全相同，再构建一次 | `abe945029c49c5a9012ed371016d3dd21679892b8294b47d01140210ede49b0f` | `bd2e33b2757451c97eac5f9ceec08516e1f019f6d1347a9d6818d9083a32e40c` |
+| ③ | 仅将 `BUILD_NO` 换成另一个值 | `64c0bfe4f32bd008a3e683ebb28415c768675f7c158a9638e613ba5b94abd921` | `fa5f5d848322a56e9816fd5965fb9f179998c3d0dd35858ed5e93798253913b3` |
+| ④ | 去掉 `--mtime=@0`，其余同 ① | `9b060e925dc61996847d91ce98838ef0bc0e00759a24a0165b987b10d535f440` | `02682f67d1c34ef310e42e610da0f9fdcdbc1be2f576ee60d2ee3c2f1ef3948e` |
+| ⑤ | 同 ④，间隔几秒后再构建一次 | `9b060e925dc61996847d91ce98838ef0bc0e00759a24a0165b987b10d535f440` | `c9a8c5ff0cdcd68236bbfc5c222c3c1332a68a573a2ab88f4832178122bb36c5` |
+| Actions | 对 main 上的一次 push 运行执行 Re-run all jobs，比较两次尝试中 package 步骤打印的值 | attempt 1：`5306adeb2e2961f9235ec1750bf7ae793e661b33f63d5588d49920556303dc5a`<br>attempt 2：`5306adeb2e2961f9235ec1750bf7ae793e661b33f63d5588d49920556303dc5a` | attempt 1：`48fd47309894b59d0c58fda5160840668396f4a3f8ad3da4d80cc4893c7ff79f`<br>attempt 2：`48fd47309894b59d0c58fda5160840668396f4a3f8ad3da4d80cc4893c7ff79f` |
+
+Actions 对照使用同一主干提交的 [ci #21 / attempt 1](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38709075443/attempts/1) 和 [attempt 2](https://github.com/aCannedFish/ops-lab1-8/actions/runs/38709075443/attempts/2)，后者通过 `gh run rerun 38709075443` 执行全部 job 重跑，两次均成功。其参数固定为 `VERSION=0.0.0-main BUILD_NO=21 RUN_ID=38709075443 COMMIT=3fdf50a724b1206ca62c8d602b7ceaa534f257a7`；attempt 从 1 变为 2，但未写入本项目制品。重跑沿用原事件的 SHA 与 ref，机制参见 [GitHub 重跑说明](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/re-run-workflows-and-jobs)。
+
+补充权限对照：①的二进制与正式 v1.0.0 附件内的二进制相同，但归档哈希不同。检查发现本机目录和二进制权限为 `0775`、`BUILD_INFO` 为 `0664`，正式附件分别为 `0755`、`0644`；在同一干净源提交上，仅对本次构建进程设置 `umask 0022`，向新的 `dist/permission-control/` 子目录使用相同追溯参数重建，二进制仍为 `abe945029c49c5a9012ed371016d3dd21679892b8294b47d01140210ede49b0f`，归档变为 `fc05bdfecbfe374e4569eaa9df4618c0355ebb69a3497fbfe21795f2b3f2683e`，与第 4 节的原发布附件一致。
 
 哪些相同、哪些不同，原因分别是什么？④ 的二进制文件与 ① 是否相同？如果不同，请结合任务 0 中看到的 vcs 信息分析。据此说明制品中应当包含什么、不应包含什么。另外，`release` 在同一个提交上再次编译，而没有直接发布 `ci` 产出的主干制品：为什么这样做？这与 L-05 第 11 页的“一次构建、多处部署”是否冲突，代价是什么？
 
-<填写>
+①②的二进制与归档分别相同，说明在本次固定输入及环境中可以重复得到相同字节，Actions 两次尝试的相同哈希也支持这一观察。③的构建号同时写入二进制和 `BUILD_INFO`，因此改变它会使两个哈希都变化。④的二进制与①不同，因为临时修改 Makefile 使内嵌的 `vcs.modified` 从 `false` 变为 `true`，即使 Go 源码未变也会影响二进制，这与任务 0 的现象一致，相关字段见 [Go 构建信息说明](https://pkg.go.dev/runtime/debug#BuildSetting)。④⑤的二进制相同，归档却不同，因为未归一化的文件修改时间进入了 tar，`gzip -n` 只消除 gzip 自身的名称、时间信息，不能消除 tar 内部的时间差异。权限对照还表明当前 Makefile 未归一化文件权限，因此跨主机复现完整归档时，也必须控制 umask 等元数据输入。制品应包含可部署程序和版本、提交、构建号、运行号及工具链等追溯信息，并保持源码工作区干净，归档时间、属主、权限和文件顺序应受控，绝对构建路径、临时文件和无必要的当前时间不应进入可重复部分。release 再次编译是为了把 ci 的 `0.0.0-main` 改为 tag 对应的版本并写入本次发布标识，这偏离严格的“一次编译后直接晋级发布”，增加了编译、测试和构建环境变化的成本。本实验在每个 Release 生成后复用同一附件部署和回退，当前镜像 job 也直接复制附件内的程序，仍保留了制品生成后的多处复用；上述可重复结论以工具链、平台、源码状态、编译参数和归档元数据均固定为条件，不能推出任意机器上的同一提交都会生成同一个包。
 
 **问题 4：发布与回退。** 假设 v1.0.1 发布后发现缺陷，应当如何处理？为什么不应删除 v1.0.1 的 tag、再用同一版本号重新发布？任务 6 中将服务从 v1.0.1 切换回 v1.0.0 时，使用的是哪个文件，是否需要重新构建？请用两次 `/version` 的输出说明。如果改为从源码重新构建 v1.0.0，得到的文件与原附件是否相同（参考问题 3）？最后，如果有人删除 v1.0.0 的附件，换上一个新文件和对应的新 `.sha256`，`trace.sh` 能否发现？本组在第 4 节记录的值能否发现？可以查阅 GitHub 的 Immutable releases 设置的用途。
 
-<填写>
+所用数据：第 4 节回退前后的 `/version` 分别为 `1.0.1 / 2918346e168cf7ece3be02d8b466a92cc4bf253a / build_no=3` 和 `1.0.0 / 3fdf50a724b1206ca62c8d602b7ceaa534f257a7 / build_no=1`，重新下载的 v1.0.0 归档哈希仍为 `fc05bdfecbfe374e4569eaa9df4618c0355ebb69a3497fbfe21795f2b3f2683e`。问题 3 的①与权限对照提供了同一源提交重建的比较；本次读取的 [v1.0.0 元数据](https://api.github.com/repos/aCannedFish/ops-lab1-8/releases/tags/v1.0.0)和 [v1.0.1 元数据](https://api.github.com/repos/aCannedFish/ops-lab1-8/releases/tags/v1.0.1)中，`immutable` 均为 `false`。
+
+若 v1.0.1 出现缺陷，应停止继续推广，先切回已经下载并校验的 v1.0.0，再修复问题并以新的版本号发布。同一版本号应持续指向同一提交和制品，删除 v1.0.1 的 tag 后复用该版本号会让已有下载、缓存、运行实例和审计记录对应不同内容，破坏追溯。任务 6 使用 `enroll-conflict_1.0.0_linux_amd64.tar.gz` 中原有的 `enroll-conflict` 文件回退，无需重新编译，两次 `/version` 中版本、提交和构建号从上述 v1.0.1 组合变为 v1.0.0 组合，说明运行对象确已切回。源码重建不能直接假定等于原附件，本组①虽得到相同二进制，归档仍因权限不同而变化，只有进一步控制原发布参数、工具链及权限等输入后，补充对照才复现原归档哈希。若附件和对应 `.sha256` 同时被替换，且新包的 `BUILD_INFO` 仍声称来自可达的主干提交，`trace.sh` 的内部校验及历史检查可能全部通过，它没有证明归档中的程序确由该提交构建。第 4 节独立保存的原哈希可发现新归档与发布时不同，但这一判断以记录本身可信且未一起遭到篡改为前提。[Immutable releases](https://docs.github.com/en/code-security/concepts/supply-chain-security/immutable-releases) 可锁定发布后的关联 tag 和附件并生成发布证明，用于防止这种替换，本组上述两个既有版本并未具备该不可变标记。回退可行性还以旧制品完整、可取得，并与目标架构、运行环境和当前数据兼容为条件，哈希一致只证明内容未变，不能单独证明业务正确或没有漏洞。
 
 ## 7. 选做记录
 
