@@ -138,9 +138,49 @@
 
 | 选做 | 完成情况与证据 |
 |---|---|
-| O1 容器镜像 | <未做 / 链接、镜像摘要（digest）、运行容器的主机架构> |
-| O2 缓存对反馈时间的影响 | <未做 / 预期、数据与结论> |
-| O3 迁移到小组项目 | <未做 / 仓库链接> |
+| O1 容器镜像 | 已实现，见 [PR #11](https://github.com/aCannedFish/ops-lab1-8/pull/11)；本地验证及发布后的取证步骤见下文。正式 GHCR digest 与匿名拉取结果待合入后发布验证。 |
+| O2 缓存对反馈时间的影响 | 实验前预期见下文；对照 PR 只修改 `setup-go` 的 `cache: false`，不合并。 |
+| O3 迁移到小组项目 | 尚未迁移：未提供目标项目仓库，不能以本示例的流水线或迁移计划作为实际迁移证据。所需差异见下文。 |
+
+### O1：Release 附件构建镜像
+
+[PR #11](https://github.com/aCannedFish/ops-lab1-8/pull/11) 新增同一 `release.yml` 内的 `image` job，`needs: release` 保证先生成附件。镜像 job 下载该 tag 的 `enroll-conflict_<版本>_linux_amd64.tar.gz` 和 `.sha256`，校验后解压，将解压目录作为 Docker 构建上下文。仓库的 `Dockerfile` 仅复制 `enroll-conflict` 和 `BUILD_INFO`，没有重新编译。镜像名称通过 `${GITHUB_REPOSITORY,,}` 转小写，发布至 `ghcr.io/acannedfish/ops-lab1-8:<tag>`，声明平台 `linux/amd64`；只有镜像 job 获得 `packages: write`。
+
+本地已下载 v1.0.0 附件，`sha256sum -c` 返回 `OK`，Docker 构建并运行 `-version` 成功。运行容器的本地主机 `uname -m` 为 `x86_64`，Docker 服务端为 `linux/x86_64`，镜像平台为 `linux/amd64`，输出如下：
+
+```text
+enroll-conflict version=1.0.0 commit=3fdf50a724b1206ca62c8d602b7ceaa534f257a7 build_no=1 go=go1.26.9
+```
+
+以上为本地验证，不是 GHCR 发布证明。`main` 的规则要求 PR 审批及 `ci` 通过；PR 合入后，需在 main 历史上的提交创建新的版本 tag。镜像 job 将在 Job Summary 中记录实际 GHCR digest、主机内核架构、Docker 服务端架构和镜像平台，并执行下列形式的命令，以摘要固定运行对象：
+
+```bash
+docker run --rm --platform linux/amd64 \
+  ghcr.io/acannedfish/ops-lab1-8@sha256:<本次推送的摘要> -version
+```
+
+镜像中的二进制是 `linux/amd64`，不提供多架构构建。在 Apple 芯片等 arm64 主机上仍需 `--platform linux/amd64`，依赖 Docker 的模拟支持，运行速度可能降低。
+
+**为什么不拆成另一个 Release 事件工作流？** 发布步骤使用仓库内置 `GITHUB_TOKEN` 创建 Release。为防止自动化递归触发，使用该 token 产生的事件通常不会启动新工作流（`workflow_dispatch` 和 `repository_dispatch` 是例外），因此不能期待 `release: published` 工作流因此运行。将镜像 job 放在同一工作流并显式依赖发布 job，可以沿用当前运行的上下文及已生成的 Release 附件。参见 [Triggering a workflow](https://docs.github.com/en/actions/how-tos/writing-workflows/choosing-when-your-workflow-runs/triggering-a-workflow#triggering-a-workflow-from-a-workflow)。
+
+**匿名拉取检查。** GHCR 新包默认私有，`org.opencontainers.image.source` 将包关联到仓库，但仓库公开不能代替匿名拉取验证。工作流使用临时空 Docker 配置执行 `docker pull --platform linux/amd64 <image>@<digest>`，将成功或失败写入 Summary，失败时保留日志并提示检查包可见性。需结合 [包设置](https://github.com/users/aCannedFish/packages/container/ops-lab1-8/settings)确认实际权限；发布前不能声称已可匿名拉取。参见 [Configuring package access](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility)。
+
+### O2：缓存实验
+
+**实验前预期（在创建无缓存 PR 和重跑之前记录）。** 本项目的 `go.mod` 没有第三方依赖，所以预计节省的依赖下载时间接近 0 秒；但 `setup-go` 同时缓存 Go 编译产物，标准库及项目代码在 `vet`、`test` 中仍会使用编译缓存。因此预计热缓存会缩短检查耗时，可能达到数十秒，净收益应扣除缓存下载、解压和保存的开销，不能预设“没有依赖就完全没有收益”。实验前查询仓库 Actions Cache，main 已有约 45 MB 缓存，键中 Go 版本为 `1.26.9`。将用相同的 `ubuntu-24.04`、Go `1.26.9` 和 Go 源码，以两个 PR 的 `ci` 作为比较，避免 main 的 push 额外打包与上传影响对照。
+
+### O3：迁移所需的项目差异
+
+当前代码载体仍是统一示例 `enroll-conflict`，本记录没有目标小组项目的仓库链接，也没有迁移后的 PR 或运行证据，故 O3 尚未完成。实际迁移需要先检查目标项目的构建入口、测试、依赖锁文件、运行时和部署形式，再修改对应仓库；不能仅复制本实验的文档就认定完成。
+
+| 项目差异 | 迁移时需要核对与调整 |
+|---|---|
+| 语言和依赖 | 以目标项目工具链及锁文件配置安装、缓存、格式检查、静态检查和测试，不直接沿用 Go 版本与 Makefile 目标。 |
+| 测试环境 | 若使用数据库、外部服务或前端浏览器，需要可重复的测试环境和必要配置；必需检查名称须与实际 job 一致。 |
+| 分支保护 | 在目标仓库配置 PR、审批和必需状态检查；用实际失败及修复的 PR 验证 gate。 |
+| 发布制品 | 明确可部署制品、版本及提交追溯信息；保留 main 历史检查和附件校验，按目标项目更改包名及目录。 |
+| 容器运行时 | 本示例是静态 Go 二进制，可用 `scratch`；动态链接程序、JVM、Node 或 Python 项目需要相应运行时、依赖及启动方式。 |
+| 发布及回退 | 在目标仓库完成 tag 发布、下载和运行制品、回退旧版本，记录实际链接及迁移中遇到的差异。 |
 
 ## 8. 成员贡献
 
