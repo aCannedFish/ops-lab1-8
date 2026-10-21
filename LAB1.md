@@ -206,7 +206,7 @@ Actions 对照使用同一主干提交的 [ci #21 / attempt 1](https://github.co
 |---|---|
 | O1 容器镜像 | 已完成。[v1.0.2](https://github.com/aCannedFish/ops-lab1-8/releases/tag/v1.0.2) 的 [release #4](https://github.com/aCannedFish/ops-lab1-8/actions/runs/39539696505) 中，release 与 image 两个 job 均成功；镜像已推送 GHCR，按 digest 运行及匿名拉取均通过，实际摘要和主机架构见下文。 |
 | O2 缓存对反馈时间的影响 | 已完成两组各 5 次运行，全部成功；[PR #11](https://github.com/aCannedFish/ops-lab1-8/pull/11) 使用默认缓存，[PR #12](https://github.com/aCannedFish/ops-lab1-8/pull/12) 用作无缓存对照，已关闭且未合并。预期、逐次数据、波动与局限见下文。 |
-| O3 迁移到小组项目 | 尚未迁移：本记录未提供目标项目仓库及迁移后的 PR、运行证据。迁移时需要核对的项目差异见下文。 |
+| O3 迁移到小组项目 | 以 [CharonRyui/rshx](https://github.com/CharonRyui/rshx) 为对比对象，补充其现有 Rust gate、发布流水线与统一示例的差异，以及完整迁移仍需补齐的内容。已有 CI/Release 证据与本次迁移验收分开记录，不将已有流水线等同于 O3 已全部完成，详见下文。 |
 
 ### O1：Release 附件构建镜像
 
@@ -280,18 +280,36 @@ enroll-conflict version=1.0.2 commit=a9ce09ea64afadc77f52947559c71a534956710e bu
 
 **局限。** 每组仅运行 5 次，集中于同一时间段，执行顺序未随机化，runner 镜像、硬件和负载也未固定。默认缓存组测量的是命中已有缓存时的耗时，未测量首次缓存未命中和上传缓存的开销；源码版本变化时，可能只能复用部分编译结果。无缓存组仅关闭 setup-go 的模块和编译缓存，runner 的其他系统缓存及预装工具链仍然保留。本项目没有第三方依赖，PR 检查也不执行打包和上传步骤，因此结论适用于本次实验条件；对于依赖较多的项目、main 的完整制品流水线或首次未命中缓存的情况，还需增加样本、跨时段重复实验，并控制 runner 镜像等因素后再作判断。
 
-### O3：迁移所需的项目差异
+### O3：与 CharonRyui/rshx 的迁移对比
 
-当前仍使用统一示例 `enroll-conflict`，本记录尚无目标小组项目的仓库链接、迁移后的 PR 或运行证据，O3 尚未完成。实际迁移时，需要先检查目标项目的构建入口、测试、依赖锁文件、运行时和部署形式，再修改对应仓库并验证运行结果。
+**对比对象与范围。** 选取 [CharonRyui/rshx](https://github.com/CharonRyui/rshx) 作为目标项目：它是通过 SSH 在多台机器上执行操作的 Rust 命令行工具，与本实验的 Go HTTP 服务 `enroll-conflict` 不同。以下核对日期为 2026-10-21，源码固定到 main 的[提交 `9f83f35`](https://github.com/CharonRyui/rshx/tree/9f83f35dec47b0bc66da44e935723a426ee22c3d)，避免后续仓库变化影响对比。本次只补充文档，不修改目标仓库；其已有 CI 和 Release 可以作为方案参考与运行证据，但不能据此声称已完成本实验的全部迁移验收。
 
-| 项目差异 | 迁移时需要核对与调整 |
-|---|---|
-| 语言和依赖 | 根据目标项目的工具链和依赖锁文件，配置安装、缓存、格式检查、静态检查和测试步骤，并调整构建命令。 |
-| 测试环境 | 若使用数据库、外部服务或前端浏览器，需要可重复的测试环境和必要配置；必需检查名称须与实际 job 一致。 |
-| 分支保护 | 在目标仓库配置 PR、审批和必需状态检查；用实际失败及修复的 PR 验证 gate。 |
-| 发布制品 | 明确可部署制品、版本及提交追溯信息；保留 main 历史检查和附件校验，按目标项目更改包名及目录。 |
-| 容器运行时 | 本示例是静态 Go 二进制，可用 `scratch`；动态链接程序、JVM、Node 或 Python 项目需要相应运行时、依赖及启动方式。 |
-| 发布及回退 | 在目标仓库完成 tag 发布、下载和运行制品、回退旧版本，记录实际链接及迁移中遇到的差异。 |
+**核对依据。**
+
+- [Cargo.toml](https://github.com/CharonRyui/rshx/blob/9f83f35dec47b0bc66da44e935723a426ee22c3d/Cargo.toml) 与 [rust-toolchain.toml](https://github.com/CharonRyui/rshx/blob/9f83f35dec47b0bc66da44e935723a426ee22c3d/rust-toolchain.toml)：包版本为 `0.5.0`，使用 Rust edition `2024`，工具链固定为 `1.97.0`，包含 `clippy`、`rustfmt`。仓库提交了 `Cargo.lock`。
+- [CI 配置](https://github.com/CharonRyui/rshx/blob/9f83f35dec47b0bc66da44e935723a426ee22c3d/.github/workflows/ci.yml)与 [CI 运行](https://github.com/CharonRyui/rshx/actions/runs/36875823355)：2026-10-01 对上述 main 提交的检查成功，`lint`、`test` 两个 job 均通过。
+- [Release 配置](https://github.com/CharonRyui/rshx/blob/9f83f35dec47b0bc66da44e935723a426ee22c3d/.github/workflows/release.yml)、[Release 运行](https://github.com/CharonRyui/rshx/actions/runs/36875860713)与 [v0.5.0](https://github.com/CharonRyui/rshx/releases/tag/v0.5.0)：同一提交完成验证、创建草稿、四个目标构建及最终发布；[Release 元数据](https://api.github.com/repos/CharonRyui/rshx/releases/tags/v0.5.0)的 `immutable` 为 `true`。这些运行发生在本次实验之前，属于目标项目原有能力，不是本次迁移新增的 PR 或演练记录。
+
+| 对比项 | 统一示例 enroll-conflict | rshx 的实际情况与迁移差异 |
+|---|---|---|
+| 工具链、依赖与缓存 | 固定 Go `1.26.9`，仅依赖标准库，通过 `make` 调用检查与构建。 | 使用 Cargo 管理多个第三方依赖；通过工具链文件固定 Rust 版本，并在 Clippy、测试和构建时使用 `--locked`，不允许静默修改锁文件。迁移应保留 Rust 工具链 action 的缓存，并关注依赖下载与 `target` 编译缓存，不能直接套用 O2 中无第三方依赖的耗时结论。 |
+| 质量检查入口 | 单个 `ci` job 顺序执行 `make fmt-check`、`make vet`、`make test`。 | `lint` 执行 `cargo fmt --all -- --check` 和 `cargo clippy --all-targets --locked -- -D warnings`；`test` 执行 `cargo test --locked` 和 `cargo build --release --locked`。迁移后必需检查应对应实际的 `lint`、`test`，不能仍填写示例的 `ci`；有检查工作流不等于已配置强制合并 gate。 |
+| 测试环境与运行方式 | 测试本地冲突规则及 HTTP 接口；运行时通过 `/healthz`、`/version` 检查服务。 | [测试辅助模块](https://github.com/CharonRyui/rshx/blob/9f83f35dec47b0bc66da44e935723a426ee22c3d/tests/support/mod.rs)将假的 `ssh` 放在测试进程的 `PATH` 前部，记录参数并模拟响应，不需要网络、真实 SSH 服务器或私钥。迁移应保留这种隔离；真实主机连通性、认证和部署行为仍需另行验证，不能由桩测试通过推断。CLI 运行检查应使用 `rshx --version` 及命令退出码，而非 HTTP 路径。 |
+| runner 与触发条件 | 固定 `ubuntu-24.04`，PR 和 main push 执行检查，main push 另外打包并上传 artifact。 | 使用 `ubuntu-latest`，还支持手动触发 CI；相同 ref 的新运行会取消旧运行。main CI 只检查和编译，没有上传实验所需的主干归档。若按实验条件复现，应固定到 `ubuntu-24.04`，补充 main 制品上传，并将被取消的运行与真正失败区分。 |
+| 发布 gate 与版本 | tag 发布前检查提交是否在 `origin/main` 历史中，再执行质量检查；版本从 tag 写入程序。 | `verify` 重跑格式、Clippy 和测试，并要求去掉 `v` 的 tag 与 `Cargo.toml` 版本一致，避免 CLI 与 Release 版本不一致；但当前没有 main 祖先检查。重新测试通过只说明该 tag 的代码通过检查，不代表已获准合入 main，迁移仍需补上完整历史获取及祖先检查。 |
+| 目标平台与链接方式 | `CGO_ENABLED=0` 构建一个 `linux/amd64` 程序。 | 发布 `x86_64`、`aarch64` 各自的 `gnu`、`musl` 四种 Linux 包；aarch64 使用 `cargo-zigbuild` 和 Zig 交叉编译。GNU 包动态链接 glibc，musl 包按项目说明为静态构建，回退必须选择相同架构及适配运行环境的包，不能只按版本号选附件。 |
+| 制品格式与追溯 | 一个顶层目录中包含程序和 `BUILD_INFO`，另附 `.sha256`；记录版本、构建号、提交号和运行号，可由 `trace.sh` 追溯。 | 现有包名形如 `rshx-v0.5.0-x86_64-unknown-linux-musl.tar.gz`，打包步骤只将 `rshx` 放在归档根部，没有顶层目录、`BUILD_INFO` 或单独的 `.sha256`；CLI 版本也未提供实验所需的提交与构建号。因此现有包不能直接交给模板 `trace.sh` 完成同样的追溯，必须先补齐包结构与元数据。 |
+| 归档与可重复构建 | 通过固定 tar 排序、属主、时间和 `gzip -n` 减少归档差异；权限仍需控制，见问题 3。 | 当前直接执行 `tar -czf`，没有示例中的元数据归一化处理。`Cargo.lock` 和工具链固定不能单独证明归档可重复，还应控制打包元数据、构建路径及交叉编译工具版本，并进行两次实际构建的哈希对照。 |
+| 发布编排与回退 | 一个 job 构建并发布；O1 在其后下载附件构建镜像，不重新编译。 | 按 `verify → release（草稿）→ build（四目标矩阵）→ publish` 编排，全部目标成功后才公开 Release；构建失败会留下未发布草稿。v0.5.0 的不可变发布状态与该流程相符，草稿阶段可补齐附件，不应覆盖已正式发布的版本。回退应取已发布的旧版对应平台附件，不重新构建；实际下载、校验和回退仍需记录证据。 |
+
+**迁移时仍需补齐的内容。**
+
+1. **让检查成为强制 gate。** 在 rshx 配置 PR、审批和必需检查 `lint`、`test`，固定实验 runner，并通过失败、修复、审批、合入的 PR 验证。本次查询[main 分支保护 API](https://api.github.com/repos/CharonRyui/rshx/branches/main/protection)返回 `Branch not protected`，[仓库 rulesets API](https://api.github.com/repos/CharonRyui/rshx/rulesets)返回空列表；不能将现有绿色 CI 作为已配置与本实验相同保护规则的证据。
+2. **补齐主干归档与追溯。** 在 main push 后生成并上传带顶层目录的归档和同名 `.sha256`；`BUILD_INFO` 至少包含 `name=rshx`、`version`、`build_no`、`commit`，并增加 `run_id`、Rust 工具链及 target。其中提交号取 main/tag 运行的 `github.sha`，构建号和运行号分别取 `github.run_number`、`github.run_id`，不能手工填写。保持模板所需字段后再引入 `scripts/trace.sh`，并保留各平台目标的区别。
+3. **补齐发布来源约束。** 在现有版本一致性检查之外，加入 tag 提交属于 main 历史的验证；保留草稿、矩阵构建、最终发布的顺序，在不可变发布之前一次上传完整归档与校验文件。多架构是 rshx 的已有能力，满足实验基本要求可以先验证一个 Linux 目标，不必把四目标全部视为新增要求。
+4. **记录迁移验收证据。** 提供实际迁移 PR、失败与修复运行、未合入提交的 tag 被拒记录，以及两个新版本的附件、`trace.sh` 输出和 CLI 回退结果；独立保存发布时哈希。不能把 2026-10-01 已有的成功运行写成本次新完成的 gate 演练或回退实验。
+
+**结论。** 可以迁移的是“PR 检查与审批、可信主干来源、tag 发布、制品追溯、复用旧制品回退”的原则，而不是照搬 Go 命令和包名。rshx 已有适配 Rust 的检查、隔离测试、多目标构建和不可变 Release 发布流程，但实验要求的强制合并保护、main 来源校验、归档追溯格式及迁移演练证据仍需补齐。因此，本节完成的是基于实际仓库的差异说明，不将 O3 标记为已全部完成。
 
 ## 8. 成员贡献
 
