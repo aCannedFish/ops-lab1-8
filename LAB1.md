@@ -204,7 +204,7 @@ Actions 对照使用同一主干提交的 [ci #21 / attempt 1](https://github.co
 
 | 选做 | 完成情况与证据 |
 |---|---|
-| O1 容器镜像 | 镜像工作流已通过 [PR #11](https://github.com/aCannedFish/ops-lab1-8/pull/11) 合入 main，本地验证已完成。合入后尚未发布新版本，GHCR digest 与匿名拉取结果仍待验证，步骤见下文。 |
+| O1 容器镜像 | 已完成。[v1.0.2](https://github.com/aCannedFish/ops-lab1-8/releases/tag/v1.0.2) 的 [release #4](https://github.com/aCannedFish/ops-lab1-8/actions/runs/39539696505) 中，release 与 image 两个 job 均成功；镜像已推送 GHCR，按 digest 运行及匿名拉取均通过，实际摘要和主机架构见下文。 |
 | O2 缓存对反馈时间的影响 | 已完成两组各 5 次运行，全部成功；[PR #11](https://github.com/aCannedFish/ops-lab1-8/pull/11) 使用默认缓存，[PR #12](https://github.com/aCannedFish/ops-lab1-8/pull/12) 用作无缓存对照，已关闭且未合并。预期、逐次数据、波动与局限见下文。 |
 | O3 迁移到小组项目 | 尚未迁移：本记录未提供目标项目仓库及迁移后的 PR、运行证据。迁移时需要核对的项目差异见下文。 |
 
@@ -220,18 +220,32 @@ enroll-conflict version=1.0.0 commit=3fdf50a724b1206ca62c8d602b7ceaa534f257a7 bu
 
 本地镜像摘要为 `sha256:460bffc7330ad7885a538b07e07d0c50c20f552c47a8d73534f76c899bf5adaf`，已使用摘要引用 `ops-lab1-o1@sha256:460bffc7330ad7885a538b07e07d0c50c20f552c47a8d73534f76c899bf5adaf` 运行容器，`/healthz` 返回 `ok`，`/version` 与上述版本一致。另外，从容器中复制二进制文件，通过 `cmp` 与附件解压得到的二进制文件比较，结果相同，二进制 SHA-256 为 `abe945029c49c5a9012ed371016d3dd21679892b8294b47d01140210ede49b0f`。
 
-截至 2026-10-15、PR #14 合入时，已完成上述本地验证，仓库的正式 Release 仍为 v1.0.0 和 v1.0.1，均早于 PR #11 合入。GHCR 发布验证还需在 main 历史中包含镜像工作流的提交上创建新的版本 tag；main 的规则要求改动经过 PR 审批并通过 `ci`。新版本发布时，镜像 job 会在 Job Summary 中记录实际 GHCR digest、主机内核架构、Docker 服务端架构和镜像平台，并使用以下命令按摘要运行镜像：
+2026-10-21 11:39:09（UTC+8），在已合入 main 的提交 `a9ce09ea64afadc77f52947559c71a534956710e` 上发布 [v1.0.2](https://github.com/aCannedFish/ops-lab1-8/releases/tag/v1.0.2)。[release #4](https://github.com/aCannedFish/ops-lab1-8/actions/runs/39539696505) 的 [release job](https://github.com/aCannedFish/ops-lab1-8/actions/runs/39539696505/job/119024366023) 和 [image job](https://github.com/aCannedFish/ops-lab1-8/actions/runs/39539696505/job/119024522478) 均成功。image job 下载本次 Release 的附件后，`sha256sum -c` 返回 `enroll-conflict_1.0.2_linux_amd64.tar.gz: OK`，随后构建并推送镜像；以下为此次正式 GHCR 发布的结果。
+
+| 项 | 实际结果 |
+|---|---|
+| 镜像 tag | `ghcr.io/acannedfish/ops-lab1-8:v1.0.2` |
+| GHCR digest | `sha256:1de57e4fb3e72c92af564e97e53f5b9420c93e04d25b50e9d34c4cabd8f0b65b` |
+| 运行容器的 Docker 主机 | `linux/x86_64`（image job 的 Docker info 输出） |
+| 镜像平台 | `linux/amd64`（匿名读取 OCI config 核对） |
+| 匿名拉取 | 通过，使用空 Docker 配置拉取同一 digest；另以匿名请求成功读取 manifest 和 config。 |
+
+image job 使用摘要而非 tag 运行镜像，命令及实际输出如下：
 
 ```bash
 docker run --rm --platform linux/amd64 \
-  ghcr.io/acannedfish/ops-lab1-8@sha256:<本次推送的摘要> -version
+  ghcr.io/acannedfish/ops-lab1-8@sha256:1de57e4fb3e72c92af564e97e53f5b9420c93e04d25b50e9d34c4cabd8f0b65b -version
+```
+
+```text
+enroll-conflict version=1.0.2 commit=a9ce09ea64afadc77f52947559c71a534956710e build_no=4 go=go1.26.9
 ```
 
 镜像中的二进制仅支持 `linux/amd64`。在 Apple 芯片等 arm64 主机上运行时，需要加上 `--platform linux/amd64`，并依赖 Docker 的模拟支持，运行速度可能降低。
 
 **为什么不拆成另一个 Release 事件工作流？** 发布步骤使用仓库内置的 `GITHUB_TOKEN` 创建 Release。为防止工作流之间循环触发，使用该 token 产生的事件通常不会启动新工作流（`workflow_dispatch` 和 `repository_dispatch` 是例外），因此这里创建 Release 后不会触发另一个监听 `release: published` 的工作流。将镜像 job 放在同一工作流中，并设置为依赖发布 job，即可使用本次运行的信息和已生成的 Release 附件。参见 [Triggering a workflow](https://docs.github.com/en/actions/how-tos/writing-workflows/choosing-when-your-workflow-runs/triggering-a-workflow#triggering-a-workflow-from-a-workflow)。
 
-**匿名拉取检查。** GHCR 新包默认私有，`org.opencontainers.image.source` 用于将包关联到仓库，匿名拉取仍需实际验证。工作流使用临时空 Docker 配置执行 `docker pull --platform linux/amd64 <image>@<digest>`，将结果写入 Summary；拉取失败时保留日志，并提示检查包的可见性。后续发布时，需结合拉取结果和[包设置](https://github.com/users/aCannedFish/packages/container/ops-lab1-8/settings)确认实际访问权限。参见 [Configuring package access](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility)。
+**匿名拉取检查。** 本次 image job 的 `Check anonymous pull` 步骤使用临时空 Docker 配置拉取上述 digest，日志返回相同的 `Digest` 和 `Status: Image is up to date`，未出现匿名拉取失败的 warning。另以未登录身份取得仅用于匿名读取的 registry token，成功读取该 digest 的 OCI manifest 和 config，确认平台为 `linux/amd64`，版本标签为 `1.0.2`，提交标签与本次主干提交一致。因此，本次镜像已验证可匿名访问；这一判断来自实际请求结果，未仅凭仓库公开或工作流绿色状态推断。包权限设置说明参见 [Configuring package access](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility)。
 
 ### O2：缓存实验
 
